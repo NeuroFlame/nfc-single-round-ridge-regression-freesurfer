@@ -38,6 +38,8 @@ def validate_and_get_inputs(covariates_path: str, data_path: str, computation_pa
 
         _log_message(f'-- Checking covariate file : {str(covariates_path)}', log_path, "info")
         X = convert_data_to_given_type(covariates, expected_covariates_info, log_path)
+        #dummy encoding categorical variables
+        X = pd.get_dummies(X, drop_first=True)
 
         _log_message(f'-- Checking dependents file : {str(data_path)}', log_path, "info")
         y = convert_data_to_given_type(data, expected_dependents_info, log_path)
@@ -56,7 +58,7 @@ def convert_data_to_given_type(data_df : pd.DataFrame, column_info : dict, log_p
     expected_column_names = column_info.keys()
 
     all_rows_to_ignore = _validate_data_datatypes(data_df, column_info, log_path)
-    if all_rows_to_ignore:
+    if len(all_rows_to_ignore) > 0:
         _log_message(f'-- Ignored following rows with incorrect column values: '
                      f'{str(all_rows_to_ignore)}', log_path, "info")
 
@@ -75,7 +77,7 @@ def convert_data_to_given_type(data_df : pd.DataFrame, column_info : dict, log_p
             elif column_datatype.strip().lower() == "float":
                 data_df[column_name] = pd.to_numeric(data_df[column_name], errors='coerce').astype('float')
             elif column_datatype.strip().lower() == "str":
-                data_df[column_name] = pd.to_numeric(data_df[column_name], errors='coerce').astype('object')
+                data_df[column_name] = data_df[column_name].astype('object')
             elif column_datatype.strip().lower() == "bool":
                 data_df[column_name] = pd.to_numeric(data_df[column_name], errors='coerce').astype('bool')
             else:
@@ -105,7 +107,7 @@ def _validate_data_datatypes(data_df : pd.DataFrame, column_info : dict, log_pat
             elif column_datatype.strip().lower() == "float":
                 temp = pd.to_numeric(data_df[column_name], errors='coerce').astype('float')
             elif column_datatype.strip().lower() == "str":
-                temp = pd.to_numeric(data_df[column_name], errors='coerce').astype('object')
+                temp = data_df[column_name].astype('object')
             elif column_datatype.strip().lower() == "bool":
                 #Converting to int first to make sure all the possible values are converted correctly
                 temp = pd.to_numeric(data_df[column_name], errors='coerce').astype('int') #or .astype('Int64')
@@ -122,7 +124,7 @@ def _validate_data_datatypes(data_df : pd.DataFrame, column_info : dict, log_pat
 
             all_rows_to_ignore = all_rows_to_ignore.union(rows_to_ignore)
 
-            if rows_to_ignore:
+            if len(rows_to_ignore) > 0:
                 _log_message(f' Ignoring rows with incorrect values for column {column_name} : '
                          f'{str(rows_to_ignore)}', log_path, "info")
             else:

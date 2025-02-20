@@ -3,7 +3,7 @@
         "5th-Ventricle":"int"
     },
     "Covariates": {
-        "sex_M":"bool",
+        "sex":"str",
         "isControl":"bool",
         "age":"float"
     },
