@@ -83,17 +83,17 @@ Both files must follow a consistent format, though the specific covariates and d
 
 - **Input (parameters.json)**:
    ```json   
-   {
+    {
     "Dependents": {
-        "5th-Ventricle":"float"
+        "5th-Ventricle":"int"
     },
     "Covariates": {
-        "sex_M":"bool",
+        "sex":"str",
         "isControl":"bool",
         "age":"float"
     },
     "Lambda": 1
-  }
+   }
    ```
 
 - **Global Output files: global_regression_result.json, global_regression_result.html**
