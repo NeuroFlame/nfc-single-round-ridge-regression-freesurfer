@@ -1,0 +1,11 @@
+{
+    "Dependents": {
+        "5th-Ventricle":"int"
+    },
+    "Covariates": {
+        "sex_M":"bool",
+        "isControl":"bool",
+        "age":"float"
+    },
+    "Lambda": 1
+}
