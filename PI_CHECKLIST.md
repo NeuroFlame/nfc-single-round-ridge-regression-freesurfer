@@ -7,7 +7,7 @@ Principal Investigators (PIs) are responsible for defining and enforcing additio
 
 ## **Accuracy & Meaningfulness of Results**  
 - [ ] The module produces valid and meaningful computational results.
-- [ ] Replicate the COBRE Single round ridge regression Freesurfer results (152 subjects) as outlined in the vaults paper for these ROI's:
+      Replicate the COBRE Single round ridge regression Freesurfer results (152 subjects) as outlined in the vaults paper for these ROI's:
       Controls have higher values in temporal lobe: lh_S_temporal_inf_thickness, rh_S_oc_temp_lat_thickness,lh_middletemporal_thickness,lh_superiortemporal_thickness,Left_Inf_Lat_Vent
 
 ## **Compatibility with Intended Datasets**  
