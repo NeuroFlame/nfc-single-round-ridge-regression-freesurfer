@@ -154,11 +154,14 @@ class SRRExecutor(Executor):
         # Paths to data directories and logs
         log_path = os.path.join(get_output_directory_path(fl_ctx), "client_log.txt")
         # Save the global regression results
-        print(f'\n\n\ntype(agg_result): {type(agg_result)}')
-        self.save_json(agg_result, "global_regression_result.json", fl_ctx)
         result = cem.perform_local_step3(agg_result, log_path, cache_dict)
-        self.save_html(result.get('output').get('html'), "global_regression_result.html", fl_ctx)
-        #TODO: enable this self.save_stats_csv(result.get('output').get('csv'), "_.csv", fl_ctx)
+        for output_file_type, output_file_data in result.get('output').items():
+            if output_file_type == 'json':
+                self.save_json(output_file_data, "global_regression_result.json", fl_ctx)
+            if output_file_type == 'html':
+                self.save_html(output_file_data, "global_regression_result.html", fl_ctx)
+            if output_file_type == 'csv':
+                self.save_stats_csv(output_file_data, ".csv", fl_ctx)
 
         return result
 

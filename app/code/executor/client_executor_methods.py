@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -104,23 +105,21 @@ def perform_local_step2(agg_results, log_path, cache_dict):
 
 
 def perform_local_step3(agg_results, log_path, cache_dict):
-
-    print("\n\n\n\n\n\local3 agg_results: ", str(agg_results))
-
-    results = {'output': {'html': _get_html_from_results(agg_results),
-                          # TODO: Check why csv doesnot work inside flare, the same module works fine elsewhere
-                          # 'csv' : _get_global_local_stats_df(agg_results),
+    import copy
+    results = {'output': {'json' : copy.deepcopy(agg_results),
+                          'csv' : _get_global_local_stats_df(copy.deepcopy(agg_results)),
+                          'html': _get_html_from_results(copy.deepcopy(agg_results))
                           },
                 'cache': {}}
+
     return results
 
 
 def _get_global_local_stats_df(agg_results):
     import pandas as pd
+
     def _get_stats_df(temp_df, roi_names):
-        #print('\n\n\n\n\n temp_df')
-        #print(temp_df)
-        covariate_labels = temp_df.pop('covariate_labels')[0]
+        covariate_labels = temp_df.pop(GlobalOutputMetricLabels.COVARIATE_LABELS.value)[0]
         col_names = temp_df.columns.tolist()
         cols_with_list_vals = []
         for idx, k in enumerate(temp_df.loc[0]):
@@ -128,9 +127,6 @@ def _get_global_local_stats_df(agg_results):
                 cols_with_list_vals.append(idx)
 
         new_df = pd.concat([temp_df[col_names[k]].apply(pd.Series) for k in cols_with_list_vals], axis=1)
-        #print('\n\n\n\n\n')
-        #print(new_df)
-        #print(f'Cols: {str( [col_names[x] + "_" + y for x in cols_with_list_vals for y in covariate_labels])}')
         new_df.columns = [col_names[x] + "_" + y for x in cols_with_list_vals for y in covariate_labels]
 
         # Add remaining columns
@@ -143,26 +139,24 @@ def _get_global_local_stats_df(agg_results):
 
     result = {}
     rev_df = pd.DataFrame(agg_results)
-    roi_names = rev_df['ROI'].tolist()
-    #print("\n\n\n\n\nRef pdf", str(rev_df))
+    roi_names = rev_df[OutputDictKeyLabels.ROI.value].tolist()
 
-    global_df =  pd.json_normalize(rev_df['global_stats'])
-    result['global_stats'] = _get_stats_df(global_df, roi_names)
+    global_df =  pd.json_normalize(rev_df[OutputDictKeyLabels.GLOBAL_STATS.value])
+    result[OutputDictKeyLabels.GLOBAL_STATS.value] = _get_stats_df(global_df, roi_names)
 
-    site_names = rev_df['local_stats'][0].keys()
+    site_names = rev_df[OutputDictKeyLabels.LOCAL_STATS.value][0].keys()
     for site in site_names:
-        local_df = pd.json_normalize(rev_df['local_stats'][0][site])
+        local_df = pd.json_normalize(rev_df[OutputDictKeyLabels.LOCAL_STATS.value][0][site])
         for idx in range(1, len(roi_names)):
-            local_df = pd.concat([local_df, pd.json_normalize(rev_df['local_stats'][idx][site])],
+            local_df = pd.concat([local_df, pd.json_normalize(rev_df[OutputDictKeyLabels.LOCAL_STATS.value][idx][site])],
                                  ignore_index=True, axis=0)
 
-        result[f'local_stats_{site}'] = _get_stats_df(local_df, roi_names)
+        result[f'{OutputDictKeyLabels.LOCAL_STATS.value}_{site}'] = _get_stats_df(local_df, roi_names)
 
     return result
 
 
 def _get_html_from_results(agg_results):
-
     doc = dominate.document(title='Results')
     global_stats_label = OutputDictKeyLabels.GLOBAL_STATS.value
     local_stats_label = OutputDictKeyLabels.LOCAL_STATS.value
@@ -260,7 +254,7 @@ def _get_html_from_results(agg_results):
                             GlobalOutputMetricLabels.DEGREES_OF_FREEDOM.value]
                         td(GlobalOutputMetricLabels.DEGREES_OF_FREEDOM.value)
                         td(global_degfree, colspan=5)
-                for site in result['local_stats']:
+                for site in result[OutputDictKeyLabels.LOCAL_STATS.value]:
                     with tbody():
                         with tr():
                             with td(rowspan=6):
