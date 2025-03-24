@@ -1,6 +1,7 @@
 {
     "Dependents": {
-        "5th-Ventricle":"int"
+        "4th-Ventricle":"float",
+        "5th-Ventricle":"float"
     },
     "Covariates": {
         "sex":"str",
