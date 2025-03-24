@@ -73,7 +73,7 @@ def perform_client_step1(covariates_path, data_path, computation_parameters, log
 
 def perform_local_step2(agg_results, log_path, cache_dict):
     def get_y_estimate(coefficients, X):
-        return  np.dot(coefficients, np.matrix.transpose(X.to_numpy()))
+        return  np.dot(coefficients, np.matrix.transpose(X))
 
     X = pd.read_json(cache_dict["X"], orient='split')
     y = pd.read_json(cache_dict["y"], orient='split')
@@ -89,7 +89,7 @@ def perform_local_step2(agg_results, log_path, cache_dict):
 
         X_, y_ = cip.ignore_nans(X, curr_y)
 
-        SSE_local.append(_get_SSE(y_, get_y_estimate(global_coefficients, X)))
+        SSE_local.append(_get_SSE(y_, get_y_estimate(global_coefficients, X_)))
         SST_local.append(np.sum(np.square(np.subtract(y_, mean_y_global))))
 
         varX_matrix_local.append(np.dot(X_.T, X_).tolist())

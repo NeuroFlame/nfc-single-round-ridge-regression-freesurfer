@@ -7,18 +7,18 @@ from utils.ancillary import *
 def perform_remote_step1(site_results, agg_cache_dict):
     global_results = {}
     num_sites = len(site_results.keys())
-    roi_labels = []
+    roi_labels = sorted(list(site_results[next(iter(site_results))].keys()))
     #print("\n\n\n\n Remote step1 input:")
     #print(site_results)
     #print("\n\n\n\n")
-    for roi_column in site_results[next(iter(site_results))].keys():
+    avg_coefficients_all_rois=[]
+    mean_y_global_all_rois=[]
+    dof_global=[]
+    for roi_column in roi_labels:
         # Initialize accumulators for weighted averaging
         total_sum_coefficients = None
-        all_stats_local = []
         total_sum_mean_y_local = 0.0
         total_subjects = 0
-        roi_labels.append(roi_column)
-        #covariates_headers =
 
         for site, results in site_results.items():
             stats = results[roi_column]
@@ -36,16 +36,6 @@ def perform_remote_step1(site_results, agg_cache_dict):
             # Aggregation of mean_y
             total_sum_mean_y_local += stats["mean_y_local"] * num_subjects
 
-            # Aggregation of stats
-            all_stats_local.append([{
-                GlobalOutputMetricLabels.COEFFICIENT.value: stats[GlobalOutputMetricLabels.COEFFICIENT.value],
-                GlobalOutputMetricLabels.T_STAT.value: stats[GlobalOutputMetricLabels.T_STAT.value],
-                GlobalOutputMetricLabels.P_VALUE.value: stats[GlobalOutputMetricLabels.P_VALUE.value],
-                GlobalOutputMetricLabels.R_SQUARE.value:stats[GlobalOutputMetricLabels.R_SQUARE.value],
-                GlobalOutputMetricLabels.COVARIATE_LABELS.value: stats[GlobalOutputMetricLabels.COVARIATE_LABELS.value],
-                GlobalOutputMetricLabels.SUM_OF_SQUARES_ERROR.value: stats[GlobalOutputMetricLabels.SUM_OF_SQUARES_ERROR.value],
-                "ROI Label": roi_column
-            }])
 
             covariates_headers = stats[GlobalOutputMetricLabels.COVARIATE_LABELS.value]
 
@@ -53,6 +43,12 @@ def perform_remote_step1(site_results, agg_cache_dict):
         avg_coefficients = total_sum_coefficients / num_sites
         global_degrees_of_freedom = total_subjects - avg_coefficients.shape[0]
         global_mean_y = total_sum_mean_y_local / total_subjects
+
+        # Needed for next iteration
+        avg_coefficients_all_rois.append(avg_coefficients.tolist())
+        mean_y_global_all_rois.append(global_mean_y)
+        dof_global.append(global_degrees_of_freedom)
+
         # Store the aggregated global results
         global_results[roi_column] = {
             "Variables": covariates_headers,
@@ -61,13 +57,30 @@ def perform_remote_step1(site_results, agg_cache_dict):
             "Global Mean Y" :  global_mean_y
         }
 
+
+    all_local_stats_dicts=[]
+    for site in sorted(site_results.keys()):
+        results = site_results[site]
+        local_stats=[]
+        for roi in roi_labels:
+            curr_roi_site_results=results[roi]
+            local_stats.append({
+                GlobalOutputMetricLabels.COEFFICIENT.value: curr_roi_site_results[GlobalOutputMetricLabels.COEFFICIENT.value],
+                GlobalOutputMetricLabels.T_STAT.value: curr_roi_site_results[GlobalOutputMetricLabels.T_STAT.value],
+                GlobalOutputMetricLabels.P_VALUE.value: curr_roi_site_results[GlobalOutputMetricLabels.P_VALUE.value],
+                GlobalOutputMetricLabels.R_SQUARE.value:curr_roi_site_results[GlobalOutputMetricLabels.R_SQUARE.value],
+                GlobalOutputMetricLabels.COVARIATE_LABELS.value: curr_roi_site_results[GlobalOutputMetricLabels.COVARIATE_LABELS.value],
+                GlobalOutputMetricLabels.SUM_OF_SQUARES_ERROR.value: curr_roi_site_results[GlobalOutputMetricLabels.SUM_OF_SQUARES_ERROR.value]
+            })
+        all_local_stats_dicts.append(local_stats)
+
     agg_cache_dict.update({
-        "avg_coefficients":avg_coefficients.tolist(),
-        "global_mean_y": global_mean_y,
-        "global_degrees_of_freedom":global_degrees_of_freedom,
+        "avg_coefficients": avg_coefficients_all_rois,
+        "global_mean_y": mean_y_global_all_rois,
+        "global_degrees_of_freedom":dof_global,
         "X_labels": covariates_headers,
         "y_labels" : roi_labels,
-        "all_stats_local": all_stats_local
+        "all_stats_local": all_local_stats_dicts
     })
 
     results = {'output': global_results, 'cache': agg_cache_dict}
@@ -124,7 +137,7 @@ def perform_remote_step2(site_results, agg_cache_dict):
         var_covar_beta_global = MSE[i] * sp.linalg.inv(varX_matrix_global[i])
         se_beta_global = np.sqrt(var_covar_beta_global.diagonal())
         ts = (avg_beta_vector[i] / se_beta_global).tolist()
-        ps = t_to_p(ts, dof_global)
+        ps = t_to_p(ts, dof_global[i])
         ts_global.append(ts)
         ps_global.append(ps)
 
@@ -149,9 +162,9 @@ def perform_remote_step2(site_results, agg_cache_dict):
     # COVARIATE_LABELS = "covariate_labels"
 
 
-    global_dict_list = get_stats_to_dict(keys1, [avg_beta_vector],
+    global_dict_list = get_stats_to_dict(keys1, avg_beta_vector,
                                          r_squared_global, ts_global,
-                                         ps_global, [dof_global], SSE_global.tolist(),
+                                         ps_global, dof_global, SSE_global.tolist(),
                                          repeat(X_labels, len(y_labels)))
 
     # Print Everything
