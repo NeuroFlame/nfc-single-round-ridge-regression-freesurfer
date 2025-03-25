@@ -83,9 +83,10 @@ Both files must follow a consistent format, though the specific covariates and d
 
 - **Input (parameters.json)**:
    ```json   
-    {
+   {
     "Dependents": {
-        "5th-Ventricle":"int"
+        "4th-Ventricle":"float",
+        "5th-Ventricle":"float"
     },
     "Covariates": {
         "sex":"str",
