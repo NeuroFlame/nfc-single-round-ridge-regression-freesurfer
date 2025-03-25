@@ -3,8 +3,8 @@
 To gain approval from the development team, ensure the computation module meets the following technical requirements.  
 
 ## **Successful Execution**  
-- [ ] The module runs successfully with **three or more sites** on the public platform using the provided test data.
-  - Needs testing by dev team
+- [x] The module runs successfully with **three or more sites** on the public platform using the provided test data.
+  - Successful run with 4 sites 2025-03-25
 
 ## **Computation Description Document**  
 Provide a clear and comprehensive document covering the following:  
@@ -18,13 +18,12 @@ Provide a clear and comprehensive document covering the following:
   - Describe html and json outputs
   - Provide examples
 - [ ] **Minimum Hardware & Space Requirements** – System requirements for execution.  
-- [ ] **Basic Dataset Validator** – A tool or script to validate input data format.  
+- [ ] **Basic Dataset Validator** – A tool or script to validate input data format.
 
 ## **GitHub Repository**  
 Ensure the module is properly hosted and documented:  
 - [x] The module is in a **publicly accessible repository**.  
-- [ ] The repository includes:  
+- [x] The repository includes:  
    - [x] A **buildable, working image**.  
-   - [ ] **Test data** for validation (**3 or more sites**).
-     - Needs an additional site
-   - [x] The **computation description document**.  
+   - [x] **Test data** for validation (**3 or more sites**).
+   - [x] The **computation description document**.
