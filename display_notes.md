@@ -85,7 +85,8 @@ The key steps of the algorithm include:
    - After each site computes its local regression results, the controller aggregates the results by performing averaging of the coefficients and other statistics based on the number of subjects (degrees of freedom) per site.
 
 #### Assumptions
-- The data provided by each site follows the specified format (standardized covariate and dependent variable headers).
+- The data.csv and covariates.csv provided by each site follows the specified format (standardized covariate and dependent variable headers).
+- If the freesurfer data is not in the csv format, please use the code other_references/data_generator.py to generate csv file from .aseg freesurfer files.
 - The computation is run in a federated environment, and each site contributes valid data.
 
 #### Output Description
