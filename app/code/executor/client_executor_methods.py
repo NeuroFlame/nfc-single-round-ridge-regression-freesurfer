@@ -8,6 +8,7 @@ from dominate.tags import *
 
 from utils.ancillary import *
 from . import client_input_preprocessor as cip
+from . import client_constants
 
 def perform_client_step1(covariates_path, data_path, computation_parameters, log_path, cache_dict):
     # Validate the run inputs (covariates, dependent data, and parameters)
@@ -21,7 +22,7 @@ def perform_client_step1(covariates_path, data_path, computation_parameters, log
 
     y=data
 
-    lamb = computation_parameters["Lambda"]
+    lamb = computation_parameters.get("Lambda", client_constants.DEFAULT_LAMBDA)
 
     # Initialize results storage
     output = {}

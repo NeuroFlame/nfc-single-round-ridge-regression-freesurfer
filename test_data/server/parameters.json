@@ -8,5 +8,6 @@
         "isControl":"bool",
         "age":"float"
     },
-    "Lambda": 1
+    "Lambda": 1,
+    "IgnoreSubjectsWithInvalidData" : true
 }
