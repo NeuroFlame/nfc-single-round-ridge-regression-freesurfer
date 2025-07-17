@@ -1,4 +1,4 @@
-### Computation Description for `neuroflame_comp_single_round_ridge_regression_freesurfer`
+### Computation Description
 
 #### Overview
 This computation performs a ridge regression on the merged datasets with freesurfer modality from multiple sites using specified covariates and dependent variables. This computation is designed to run within a federated learning environment, where each site performs a local regression analysis, and then global results are aggregated.
