@@ -8,6 +8,7 @@ from nvflare.apis.fl_constant import ReservedKey
 from utils.task_constants import *
 from . import aggregator_methods as am
 
+
 class SRRAggregator(Aggregator):
     """
     SrrAggregator handles the aggregation of results from multiple client sites.
@@ -27,9 +28,9 @@ class SRRAggregator(Aggregator):
         self.agg_cache_dir: str = "./temp_agg_cache"
         os.makedirs(self.agg_cache_dir, exist_ok=True)  # succeeds even if directory exists.
 
-        #Works as a cache store between several calls
-        #TODO: selcache_results: Dict[str, Any] = {}
-        #TODO: Create a tempdir and use that as cachedir for now
+        # Works as a cache store between several calls
+        # TODO: selcache_results: Dict[str, Any] = {}
+        # TODO: Create a tempdir and use that as cachedir for now
 
     def accept(self, site_result: Shareable, fl_ctx: FLContext) -> bool:
         """
@@ -73,18 +74,17 @@ class SRRAggregator(Aggregator):
         contribution_round = fl_ctx.get_prop(key="CURRENT_ROUND", default=None)
 
         if (contribution_round == 0):
-                agg_result = am.perform_remote_step1(self.site_results[contribution_round], self.agg_cache)
-                self.agg_cache = agg_result['cache']
-                outgoing_shareable = Shareable()
-                outgoing_shareable['result'] = agg_result['output']
-                return outgoing_shareable
+            agg_result = am.perform_remote_step1(self.site_results[contribution_round], self.agg_cache)
+            self.agg_cache = agg_result['cache']
+            outgoing_shareable = Shareable()
+            outgoing_shareable['result'] = agg_result['output']
+            return outgoing_shareable
 
-        elif(contribution_round == 1):
-                agg_result = am.perform_remote_step2(self.site_results[contribution_round], self.agg_cache)
-                self.agg_cache = agg_result['cache']
-                outgoing_shareable = Shareable()
-                outgoing_shareable['result'] = agg_result['output']
-                return outgoing_shareable
+        elif (contribution_round == 1):
+            agg_result = am.perform_remote_step2(self.site_results[contribution_round], self.agg_cache)
+            self.agg_cache = agg_result['cache']
+            outgoing_shareable = Shareable()
+            outgoing_shareable['result'] = agg_result['output']
+            return outgoing_shareable
         else:
             return Shareable()  # Return an empty Shareable if no data to aggregate
-

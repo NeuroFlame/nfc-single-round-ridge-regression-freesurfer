@@ -5,4 +5,3 @@ TASK_NAME_LOCAL_CLIENT_STEP3 = "perform_local_client_step3"
 
 # Component IDs
 SRR_AGGREGATOR_ID = "srr_aggregator"
-

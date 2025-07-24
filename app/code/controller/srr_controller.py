@@ -7,6 +7,7 @@ from utils.utils import get_parameters_file_path
 from utils.task_constants import *
 from typing import Callable, Dict, Any
 
+
 class SRRController(Controller):
     """
     SrrController handles the flow of tasks for site regression and aggregation
@@ -61,7 +62,7 @@ class SRRController(Controller):
         :param abort_signal: Signal for aborting the flow if needed.
         :param fl_ctx: Federated learning context for this run.
         """
-        #Keeps track of the iteration number
+        # Keeps track of the iteration number
         fl_ctx.set_prop(key="CURRENT_ROUND", value=0)
 
         # Broadcast the regression task and send site results to the aggregator
@@ -76,7 +77,7 @@ class SRRController(Controller):
         # Aggregate results from all sites
         aggregate_result = self.srr_aggregator.aggregate(fl_ctx)
 
-        #Increment iteration number after every aggregation
+        # Increment iteration number after every aggregation
         fl_ctx.set_prop(key="CURRENT_ROUND", value=1)
 
         self._broadcast_task(
@@ -89,7 +90,7 @@ class SRRController(Controller):
 
         # Aggregate results from all sites
         aggregate_result = self.srr_aggregator.aggregate(fl_ctx)
-        #Increment iteration number after every aggregation
+        # Increment iteration number after every aggregation
         fl_ctx.set_prop(key="CURRENT_ROUND", value=2)
 
         # Broadcast the global aggregated results to all sites

@@ -10,9 +10,11 @@ from utils.ancillary import *
 from . import client_input_preprocessor as cip
 from . import client_constants
 
+
 def perform_client_step1(covariates_path, data_path, computation_parameters, log_path, cache_dict):
     # Validate the run inputs (covariates, dependent data, and parameters)
-    is_valid, covariates, data = cip.validate_and_get_inputs(covariates_path, data_path, computation_parameters, log_path)
+    is_valid, covariates, data = cip.validate_and_get_inputs(covariates_path, data_path, computation_parameters,
+                                                             log_path)
     if not is_valid:
         # Halt execution if validation fails
         raise ValueError(f"Invalid run input. Check validation log at {log_path}")
@@ -20,7 +22,7 @@ def perform_client_step1(covariates_path, data_path, computation_parameters, log
     X = sm.add_constant(covariates)  # Add intercept
     X_labels = list(X.columns)
 
-    y=data
+    y = data
 
     lamb = computation_parameters.get("Lambda", client_constants.DEFAULT_LAMBDA)
 
@@ -36,7 +38,7 @@ def perform_client_step1(covariates_path, data_path, computation_parameters, log
         num_subjects = len(y_)
 
         # Printing local stats as well
-        #model = sm.OLS(y_, X_).fit()
+        # model = sm.OLS(y_, X_).fit()
         model = _get_ridge_regression_model(X_, y_, lamb)
         coefficients = model.params
         ssr = model.ssr
@@ -56,8 +58,8 @@ def perform_client_step1(covariates_path, data_path, computation_parameters, log
             GlobalOutputMetricLabels.COVARIATE_LABELS.value: X_labels,
             GlobalOutputMetricLabels.SUM_OF_SQUARES_ERROR.value: sse,
             "ROI Label": column,
-            "mean_y_local" : mean_y_local,
-            "num_subjects" : num_subjects
+            "mean_y_local": mean_y_local,
+            "num_subjects": num_subjects
         }
 
     cache_dict = {
@@ -66,15 +68,14 @@ def perform_client_step1(covariates_path, data_path, computation_parameters, log
         "lambda": lamb
     }
 
-
-    results = {'output': output, 'cache':cache_dict}
+    results = {'output': output, 'cache': cache_dict}
 
     return results
 
 
 def perform_local_step2(agg_results, log_path, cache_dict):
     def get_y_estimate(coefficients, X):
-        return  np.dot(coefficients, np.matrix.transpose(X))
+        return np.dot(coefficients, np.matrix.transpose(X))
 
     X = pd.read_json(cache_dict["X"], orient='split')
     y = pd.read_json(cache_dict["y"], orient='split')
@@ -107,11 +108,11 @@ def perform_local_step2(agg_results, log_path, cache_dict):
 
 def perform_local_step3(agg_results, log_path, cache_dict):
     import copy
-    results = {'output': {'json' : copy.deepcopy(agg_results),
-                          'csv' : _get_global_local_stats_df(copy.deepcopy(agg_results)),
+    results = {'output': {'json': copy.deepcopy(agg_results),
+                          'csv': _get_global_local_stats_df(copy.deepcopy(agg_results)),
                           'html': _get_html_from_results(copy.deepcopy(agg_results))
                           },
-                'cache': {}}
+               'cache': {}}
 
     return results
 
@@ -142,15 +143,16 @@ def _get_global_local_stats_df(agg_results):
     rev_df = pd.DataFrame(agg_results)
     roi_names = rev_df[OutputDictKeyLabels.ROI.value].tolist()
 
-    global_df =  pd.json_normalize(rev_df[OutputDictKeyLabels.GLOBAL_STATS.value])
+    global_df = pd.json_normalize(rev_df[OutputDictKeyLabels.GLOBAL_STATS.value])
     result[OutputDictKeyLabels.GLOBAL_STATS.value] = _get_stats_df(global_df, roi_names)
 
     site_names = rev_df[OutputDictKeyLabels.LOCAL_STATS.value][0].keys()
     for site in site_names:
         local_df = pd.json_normalize(rev_df[OutputDictKeyLabels.LOCAL_STATS.value][0][site])
         for idx in range(1, len(roi_names)):
-            local_df = pd.concat([local_df, pd.json_normalize(rev_df[OutputDictKeyLabels.LOCAL_STATS.value][idx][site])],
-                                 ignore_index=True, axis=0)
+            local_df = pd.concat(
+                [local_df, pd.json_normalize(rev_df[OutputDictKeyLabels.LOCAL_STATS.value][idx][site])],
+                ignore_index=True, axis=0)
 
         result[f'{OutputDictKeyLabels.LOCAL_STATS.value}_{site}'] = _get_stats_df(local_df, roi_names)
 
@@ -162,7 +164,7 @@ def _get_html_from_results(agg_results):
     global_stats_label = OutputDictKeyLabels.GLOBAL_STATS.value
     local_stats_label = OutputDictKeyLabels.LOCAL_STATS.value
 
-    #Add style
+    # Add style
     with doc.head:
         style('''
             body {
@@ -216,7 +218,7 @@ def _get_html_from_results(agg_results):
             }
         ''')
 
-    #Add document body
+    # Add document body
     with doc:
         h1('Results')
         hr()
@@ -296,6 +298,7 @@ def _get_html_from_results(agg_results):
 
 def _get_SSE(y_actual, y_pred):
     return np.sum((y_actual - y_pred) ** 2)
+
 
 def _get_ridge_regression_model(X, y, lamb, use_regularization_fit=True):
     """Performs ridge regression

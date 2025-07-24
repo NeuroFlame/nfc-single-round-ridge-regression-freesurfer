@@ -15,6 +15,7 @@ from utils.task_constants import *
 from . import client_executor_methods as cem
 from . import client_cache_store as ccs
 
+
 class SRRExecutor(Executor):
     def __init__(self):
         """
@@ -23,11 +24,11 @@ class SRRExecutor(Executor):
         logging.info("SrrExecutor initialized")
 
     def execute(
-        self,
-        task_name: str,
-        shareable: Shareable,
-        fl_ctx: FLContext,
-        abort_signal: Signal,
+            self,
+            task_name: str,
+            shareable: Shareable,
+            fl_ctx: FLContext,
+            abort_signal: Signal,
     ) -> Shareable:
         """
         Main execution entry point. Routes tasks to specific methods based on the task name.
@@ -46,34 +47,37 @@ class SRRExecutor(Executor):
         outgoing_shareable = Shareable()
 
         if task_name == TASK_NAME_LOCAL_CLIENT_STEP1:
-            client_result = self._do_task_perform_client_step1(shareable, fl_ctx, abort_signal, cache_store.get_cache_dict())
+            client_result = self._do_task_perform_client_step1(shareable, fl_ctx, abort_signal,
+                                                               cache_store.get_cache_dict())
             cache_store.update_cache_dict(client_result['cache'])
             outgoing_shareable['result'] = client_result['output']
 
         elif task_name == TASK_NAME_LOCAL_CLIENT_STEP2:
-            client_result = self._do_task_perform_client_step2(shareable, fl_ctx, abort_signal, cache_store.get_cache_dict())
+            client_result = self._do_task_perform_client_step2(shareable, fl_ctx, abort_signal,
+                                                               cache_store.get_cache_dict())
             cache_store.update_cache_dict(client_result['cache'])
             outgoing_shareable['result'] = client_result['output']
 
         elif task_name == TASK_NAME_LOCAL_CLIENT_STEP3:
-            client_result = self._do_task_perform_client_step3(shareable, fl_ctx, abort_signal, cache_store.get_cache_dict())
+            client_result = self._do_task_perform_client_step3(shareable, fl_ctx, abort_signal,
+                                                               cache_store.get_cache_dict())
             cache_store.remove_cache()
-            #Sending empty sharable object as result
+            # Sending empty sharable object as result
 
         else:
             # Raise an error if the task name is unknown
             raise ValueError(f"Unknown task name: {task_name}")
 
-        #return client_result['output']
+        # return client_result['output']
 
         return outgoing_shareable
 
     def _do_task_perform_client_step1(
-        self,
-        shareable: Shareable,
-        fl_ctx: FLContext,
-        abort_signal: Signal,
-        cache_dict:Dict
+            self,
+            shareable: Shareable,
+            fl_ctx: FLContext,
+            abort_signal: Signal,
+            cache_dict: Dict
     ) -> Dict:
         """
         Perform the ridge regression on the merged site data.
@@ -95,19 +99,19 @@ class SRRExecutor(Executor):
         result = cem.perform_client_step1(covariates_path, data_path, computation_parameters, log_path, cache_dict)
 
         # Prepare the Shareable object to send the result to other components
-        #outgoing_shareable = Shareable()
-        #outgoing_shareable["result"] = result
-        #outgoing_shareable["result"]["site"] = fl_ctx.get_prop(FLContextKey.CLIENT_NAME)
-        #return outgoing_shareable
+        # outgoing_shareable = Shareable()
+        # outgoing_shareable["result"] = result
+        # outgoing_shareable["result"]["site"] = fl_ctx.get_prop(FLContextKey.CLIENT_NAME)
+        # return outgoing_shareable
 
         return result
 
     def _do_task_perform_client_step2(
-        self,
-        shareable: Shareable,
-        fl_ctx: FLContext,
-        abort_signal: Signal,
-        cache_dict:Dict
+            self,
+            shareable: Shareable,
+            fl_ctx: FLContext,
+            abort_signal: Signal,
+            cache_dict: Dict
     ) -> Dict:
         """
         Receives the global regression parameters, uses these global regression model on local data
@@ -134,11 +138,11 @@ class SRRExecutor(Executor):
         return result
 
     def _do_task_perform_client_step3(
-        self,
-        shareable: Shareable,
-        fl_ctx: FLContext,
-        abort_signal: Signal,
-        cache_dict:Dict
+            self,
+            shareable: Shareable,
+            fl_ctx: FLContext,
+            abort_signal: Signal,
+            cache_dict: Dict
     ) -> Dict:
         """
         Save the global regression results to a file.
@@ -165,8 +169,7 @@ class SRRExecutor(Executor):
 
         return result
 
-
-# Utility methods for saving JSON and HTML files
+    # Utility methods for saving JSON and HTML files
     def save_json(self, data: dict, filename: str, fl_ctx: FLContext) -> None:
         """
         Save a dictionary as a JSON file in the output directory.
@@ -208,6 +211,6 @@ class SRRExecutor(Executor):
                 """
         # Get the output directory path and save the HTML file
         output_dir = get_output_directory_path(fl_ctx)
-        for site_name, site_stats_df in  data.items():
-            output_path = os.path.join(output_dir, site_name+filename)
-            site_stats_df.to_csv(output_path,  index_label = 'ROI')
+        for site_name, site_stats_df in data.items():
+            output_path = os.path.join(output_dir, site_name + filename)
+            site_stats_df.to_csv(output_path, index_label='ROI')

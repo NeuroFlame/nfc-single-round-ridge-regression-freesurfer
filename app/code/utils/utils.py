@@ -3,9 +3,11 @@ import logging
 from nvflare.apis.fl_constant import FLContextKey
 from nvflare.apis.fl_context import FLContext
 
+
 def is_repo_root(path: str) -> bool:
     """Check if the given path is the repository root by looking for 'system' and 'app' directories."""
     return all(os.path.isdir(os.path.join(path, d)) for d in ("system", "app"))
+
 
 def find_repo_root_path() -> str:
     """Find the repository root directory by searching upward for 'system' and 'app' directories."""
@@ -33,12 +35,13 @@ def get_data_directory_path(fl_ctx: FLContext) -> str:
     # If DATA_DIR is not set, use the simulator and poc path
     repo_root_path = find_repo_root_path()
     simulator_and_poc_path = os.path.join(repo_root_path, f"test_data/{site_name}")
-    
+
     if os.path.exists(simulator_and_poc_path):
         logging.info(f"Data directory path for simulator and poc: {simulator_and_poc_path}")
         return simulator_and_poc_path
 
     raise FileNotFoundError("Data directory path could not be determined.")
+
 
 def get_output_directory_path(fl_ctx: FLContext) -> str:
     """Determine and return the output directory path based on the available paths."""
@@ -59,6 +62,7 @@ def get_output_directory_path(fl_ctx: FLContext) -> str:
     logging.info(f"Output directory path for simulator and poc: {simulator_and_poc_path}")
     return simulator_and_poc_path
 
+
 def get_parameters_file_path(fl_ctx: FLContext) -> str:
     """Determine and return the parameters file path based on the available paths."""
 
@@ -72,9 +76,9 @@ def get_parameters_file_path(fl_ctx: FLContext) -> str:
     # repo_root_path = find_repo_root_path()
     repo_root_path = find_repo_root_path()
     simulator_and_poc_path = os.path.abspath(os.path.join(repo_root_path, "test_data/server/parameters.json"))
-    
+
     print("simulator_and_poc_path", simulator_and_poc_path)
-    
+
     if os.path.exists(simulator_and_poc_path):
         logging.info(f"Parameters file path for simulator and poc: {simulator_and_poc_path}")
         return simulator_and_poc_path
