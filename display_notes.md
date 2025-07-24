@@ -24,7 +24,7 @@ This computation performs a ridge regression on the merged datasets with freesur
 
 | Variable Name | Type | Description | Allowed Options | Default | Required |
 | --- | --- | --- | --- | --- | --- |
-| `Dependents` | `dict` | Provide all the dependent that should be used for regressing along with their type as shown in the example above. | dict |   | ✅ true |
+| `Dependents` | `dict` | Provide all the dependent that should be used for regressing along with their type as shown in the example above. | dict |   - | ✅ true |
 | `Covariates` | `dict` | Provide all the covariates that need to be considered for regression along with their type as shown in the example above | dict | - | ✅ true |
 | `Lambda` | `float` | This parameter is the penalty weight that is applied to all variables in the model during regression. If 0, perform simple linear regression, otherwise it does ridge regression. | any value between 0 and 1 | 0 | ❌ false |
 | `IgnoreSubjectsWithMissingData` | `boolean` | This parameter lets the computation owner to decide how to handle if the data has missing or empty values. | true or false | false | ❌ false |
@@ -95,7 +95,7 @@ The key steps of the algorithm include:
 
 *   The data.csv and covariates.csv provided by each site follows the specified format (standardized covariate and dependent variable headers).
     
-*   If the freesurfer data is not in the csv format, please use the code other\_references/data\_generator.py to generate csv file from .aseg freesurfer files.
+*   If the freesurfer data is not in the csv format, please use the code [data\_generator.py](other_references/data_generator.py) to generate csv file from .aseg freesurfer files.
     
 *   The computation is run in a federated environment, and each site contributes valid data.
 
