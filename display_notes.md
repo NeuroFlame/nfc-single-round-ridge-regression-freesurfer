@@ -27,7 +27,7 @@ This computation performs a ridge regression on the merged datasets with freesur
 | `Dependents` | `dict` | Provide all the dependent that should be used for regressing along with their type as shown in the example above. | dict |   | ✅ true |
 | `Covariates` | `dict` | Provide all the covariates that need to be considered for regression along with their type as shown in the example above | dict | - | ✅ true |
 | `Lambda` | `float` | This parameter is the penalty weight that is applied to all variables in the model during regression. If 0, perform simple linear regression, otherwise it does ridge regression. | any value between 0 and 1 | 0 | ❌ false |
-| `IgnoreSubjectsWithInvalidData` | `boolean` | This parameter lets the computation owner to decide how to handle if the data has missing or empty values. | true or false | false | ❌ false |
+| `IgnoreSubjectsWithMissingData` | `boolean` | This parameter lets the computation owner to decide how to handle if the data has missing or empty values. | true or false | false | ❌ false |
 
 ### Input Description
 

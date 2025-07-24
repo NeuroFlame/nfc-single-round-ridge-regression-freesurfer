@@ -16,11 +16,11 @@ def validate_and_get_inputs(covariates_path: str, data_path: str, computation_pa
         expected_covariates = list(expected_covariates_info.keys())
         expected_dependents = list(expected_dependents_info.keys())
 
-        ignore_subjects_with_invalid_entries = computation_parameters.get("IgnoreSubjectsWithInvalidData",
-                                                                          client_constants.DEFAULT_IgnoreSubjectsWithInvalidData)
-        ignore_subjects_with_invalid_entries = bool(strtobool(str(ignore_subjects_with_invalid_entries)))
+        ignore_subjects_with_missing_entries = computation_parameters.get("IgnoreSubjectsWithMissingData",
+                                                                          client_constants.DEFAULT_IgnoreSubjectsWithMissingData)
+        ignore_subjects_with_missing_entries = bool(strtobool(str(ignore_subjects_with_missing_entries)))
 
-        _log_message(f' ignore_subjects_with_invalid_entries = {ignore_subjects_with_invalid_entries}', log_path,
+        _log_message(f' ignore_subjects_with_missing_entries = {ignore_subjects_with_missing_entries}', log_path,
                      "info")
 
         # Load the data
@@ -43,12 +43,12 @@ def validate_and_get_inputs(covariates_path: str, data_path: str, computation_pa
 
         _log_message(f'-- Checking covariate file : {str(covariates_path)}', log_path, "info")
         X = convert_data_to_given_type(covariates, expected_covariates_info, log_path,
-                                       ignore_subjects_with_invalid_entries)
+                                       ignore_subjects_with_missing_entries)
         # dummy encoding categorical variables
         X = pd.get_dummies(X, drop_first=True)
 
         _log_message(f'-- Checking dependents file : {str(data_path)}', log_path, "info")
-        y = convert_data_to_given_type(data, expected_dependents_info, log_path, ignore_subjects_with_invalid_entries)
+        y = convert_data_to_given_type(data, expected_dependents_info, log_path, ignore_subjects_with_missing_entries)
 
         # If all checks pass
         return True, X, y
@@ -60,12 +60,12 @@ def validate_and_get_inputs(covariates_path: str, data_path: str, computation_pa
 
 
 def convert_data_to_given_type(data_df: pd.DataFrame, column_info: dict, log_path: str,
-                               ignore_subjects_with_invalid_entries: bool):
+                               ignore_subjects_with_missing_entries: bool):
     expected_column_names = column_info.keys()
 
     all_rows_to_ignore = _validate_data_datatypes(data_df, column_info, log_path)
     if len(all_rows_to_ignore) > 0:
-        if ignore_subjects_with_invalid_entries:
+        if ignore_subjects_with_missing_entries:
             _log_message(f'-- Ignored following rows with incorrect column values: '
                          f'{str(all_rows_to_ignore)}', log_path, "info")
 
@@ -97,7 +97,7 @@ def convert_data_to_given_type(data_df: pd.DataFrame, column_info: dict, log_pat
         # Check for null or NaNs in the converted data
         curr_rows_to_ignore = data_df[data_df.isnull().any(axis=1)].index.tolist()
         if len(curr_rows_to_ignore) > 0:
-            if ignore_subjects_with_invalid_entries:
+            if ignore_subjects_with_missing_entries:
                 _log_message(f'-- Ignored following rows with incorrect column values: '
                              f'{str(all_rows_to_ignore)}', log_path, "info")
 

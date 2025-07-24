@@ -109,3 +109,8 @@ The computation outputs both **site-level** and **global-level** results, which 
 - **R-Squared**: The proportion of variance explained by the model.
 - **Degrees of Freedom**: The degrees of freedom used in the regression.
 - **Sum of Squared Errors (SSE)**: A measure of the model’s error.
+
+#### Running this computation
+To locally run this computation, please clone this repo and run the following:
+1. ./dockerRun.sh (This opens a bash terminal inside the docker container)
+2.  nvflare simulator -c site1,site2,site3,site4 ./app (inside the docker terminal from step 1.)

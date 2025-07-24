@@ -9,5 +9,5 @@
         "age":"float"
     },
     "Lambda": 1,
-    "IgnoreSubjectsWithInvalidData" : true
+    "IgnoreSubjectsWithMissingData" : true
 }
