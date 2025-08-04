@@ -1,17 +1,16 @@
-import logging
+import dominate
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-
-import dominate
 from dominate.tags import *
-
 from utils.ancillary import *
-from . import client_input_preprocessor as cip
+
 from . import client_constants
+from . import client_input_preprocessor as cip
 
 
-def perform_client_step1_validate_inputs_and_compute_local_model(covariates_path, data_path, computation_parameters, log_path, cache_dict):
+def perform_client_step1_validate_inputs_and_compute_local_model(covariates_path, data_path, computation_parameters,
+                                                                 logger, cache_dict):
     """
         Reads input data and covariates from the mentioned paths, performs validation. Upon successful validation,
         computes local regression models and send these model parameters to the aggregator.
@@ -19,16 +18,16 @@ def perform_client_step1_validate_inputs_and_compute_local_model(covariates_path
         :param covariates_path: user path provided for the covariates.csv file
         :param data_path: user path provided for the data.csv file
         :param computation_parameters: input parameters
-        :param log_path: logger to save logs
+        :param logger: logger to save logs
         :param cache_dict: client cache dict
     """
-
+    logger.info(f"Computation parameters received: {computation_parameters}")
     # Validate the run inputs (covariates, dependent data, and parameters)
     is_valid, covariates, data = cip.validate_and_get_inputs(covariates_path, data_path, computation_parameters,
-                                                             log_path)
+                                                             logger)
     if not is_valid:
         # Halt execution if validation fails
-        raise ValueError(f"Invalid run input. Check validation log at {log_path}")
+        raise ValueError(f"Invalid run input. Check validation log at {logger.get_file_name_with_path()}")
 
     X = sm.add_constant(covariates)  # Add intercept
     X_labels = list(X.columns)
@@ -44,7 +43,7 @@ def perform_client_step1_validate_inputs_and_compute_local_model(covariates_path
     for column in y.columns:
         curr_y = y[column]
 
-        X_without_nans, y_without_nans = cip.ignore_nans(X, curr_y)
+        X_without_nans, y_without_nans = _ignore_nans(X, curr_y)
         mean_y_local = np.mean(y_without_nans)
         num_subjects = len(y_without_nans)
 
@@ -83,14 +82,15 @@ def perform_client_step1_validate_inputs_and_compute_local_model(covariates_path
     return results
 
 
-def perform_local_step2_compute_metrics_with_global_params(agg_results, log_path, cache_dict):
+def perform_local_step2_compute_metrics_with_global_params(agg_results, logger, cache_dict):
     """
         Computes the SSE_local, SST_local and varX_matrix_local based on the global aggregated parameters
 
         :param agg_results: results received from aggregator
-        :param log_path: logger to save logs
+        :param logger: logger to save logs
         :param cache_dict: client cache dict
     """
+
     def get_y_estimate(coefficients, X):
         return np.dot(coefficients, np.matrix.transpose(X))
 
@@ -106,7 +106,7 @@ def perform_local_step2_compute_metrics_with_global_params(agg_results, log_path
 
         curr_y = y[column]
 
-        X_without_nans, y_without_nans = cip.ignore_nans(X, curr_y)
+        X_without_nans, y_without_nans = _ignore_nans(X, curr_y)
 
         SSE_local.append(_get_SSE(y_without_nans, get_y_estimate(global_coefficients, X_without_nans)))
         SST_local.append(np.sum(np.square(np.subtract(y_without_nans, mean_y_global))))
@@ -123,12 +123,12 @@ def perform_local_step2_compute_metrics_with_global_params(agg_results, log_path
     return results
 
 
-def perform_local_step3_persist_results(agg_results, log_path, cache_dict):
+def perform_local_step3_persist_results(agg_results, logger, cache_dict):
     """
        Persists results in various file formats.
 
        :param agg_results: results received from aggregator
-       :param log_path: logger to save logs
+       :param logger: logger to save logs
        :param cache_dict: client cache dict
     """
     import copy
@@ -358,3 +358,27 @@ def _get_ridge_regression_model(X, y, lamb, use_regularization_fit=True):
         raise Exception('sm.OLS() failed to fit the regression model for this data')
 
     return summary
+
+
+def _ignore_nans(X, y):
+    """Removing rows containing NaN's in X and y"""
+
+    if type(X) is pd.DataFrame:
+        X_without_nans = X.values.astype('float64')
+    else:
+        X_without_nans = X
+
+    if type(y) is pd.Series:
+        y_without_nans = y.values.astype('float64')
+    else:
+        y_without_nans = y
+
+    finite_x_idx = np.isfinite(X_without_nans).all(axis=1)
+    finite_y_idx = np.isfinite(y_without_nans)
+
+    finite_idx = finite_y_idx & finite_x_idx
+
+    y_without_nans = y_without_nans[finite_idx]
+    X_without_nans = X_without_nans[finite_idx, :]
+
+    return X_without_nans, y_without_nans

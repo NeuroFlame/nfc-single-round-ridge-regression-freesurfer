@@ -1,19 +1,19 @@
+import json
 import logging
 import os
-import json
-from typing import Dict, Any
+from typing import Dict
 
-import pandas as pd
 from nvflare.apis.executor import Executor
-from nvflare.apis.shareable import Shareable
-from nvflare.apis.fl_context import FLContext
 from nvflare.apis.fl_constant import FLContextKey
+from nvflare.apis.fl_context import FLContext
+from nvflare.apis.shareable import Shareable
 from nvflare.apis.signal import Signal
-
-from utils.utils import get_data_directory_path, get_output_directory_path
+from utils.logger import NFCLogger
 from utils.task_constants import *
-from . import client_executor_methods as cem
+from utils.utils import get_data_directory_path, get_output_directory_path
+
 from . import client_cache_store as ccs
+from . import client_executor_methods as cem
 
 
 class SRRExecutor(Executor):
@@ -22,6 +22,7 @@ class SRRExecutor(Executor):
         Initialize the SrrExecutor. This constructor sets up the logger.
         """
         logging.info("SrrExecutor initialized")
+        self.logger = None
 
     def execute(
             self,
@@ -43,6 +44,9 @@ class SRRExecutor(Executor):
             A Shareable object containing results of the task.
         """
         cache_store = ccs.CacheSerialStore(get_output_directory_path(fl_ctx))
+        self.logger = NFCLogger(fl_ctx.get_prop(FLContextKey.CLIENT_NAME) + '.log', get_output_directory_path(fl_ctx),
+                                fl_ctx.get_peer_context().get_prop("COMPUTATION_PARAMETERS").get('log_level', "info"))
+
         # Prepare the Shareable object to send the result to other components
         outgoing_shareable = Shareable()
 
@@ -62,6 +66,7 @@ class SRRExecutor(Executor):
             client_result = self._do_task_perform_client_step3(shareable, fl_ctx, abort_signal,
                                                                cache_store.get_cache_dict())
             cache_store.remove_cache()
+            self.logger.format_log()
             # Sending empty sharable object as result
 
         else:
@@ -69,7 +74,7 @@ class SRRExecutor(Executor):
             raise ValueError(f"Unknown task name: {task_name}")
 
         # return client_result['output']
-
+        self.logger.close()
         return outgoing_shareable
 
     def _do_task_perform_client_step1(
@@ -93,10 +98,11 @@ class SRRExecutor(Executor):
         covariates_path = os.path.join(data_directory, "covariates.csv")
         data_path = os.path.join(data_directory, "data.csv")
         computation_parameters = fl_ctx.get_peer_context().get_prop("COMPUTATION_PARAMETERS")
-        log_path = os.path.join(get_output_directory_path(fl_ctx), "client_log.txt")
 
         # Perform ridge regression using the specified covariates and dependent variables
-        result = cem.perform_client_step1_validate_inputs_and_compute_local_model(covariates_path, data_path, computation_parameters, log_path, cache_dict)
+        result = cem.perform_client_step1_validate_inputs_and_compute_local_model(covariates_path, data_path,
+                                                                                  computation_parameters, self.logger,
+                                                                                  cache_dict)
 
         # Prepare the Shareable object to send the result to other components
         # outgoing_shareable = Shareable()
@@ -123,17 +129,8 @@ class SRRExecutor(Executor):
         # Retrieve the global regression result from the Shareable object
         agg_result = shareable.get("result")
 
-        # Paths to data directories and logs
-        log_path = os.path.join(get_output_directory_path(fl_ctx), "client_log.txt")
-
         # Perform ridge regression using the specified covariates and dependent variables
-        result = cem.perform_local_step2_compute_metrics_with_global_params(agg_result, log_path, cache_dict)
-
-        # Prepare the Shareable object to send the result to other components
-        # outgoing_shareable = Shareable()
-        # outgoing_shareable["result"] = result
-        # #outgoing_shareable["result"]["site"] = fl_ctx.get_prop(FLContextKey.CLIENT_NAME)
-        # return outgoing_shareable
+        result = cem.perform_local_step2_compute_metrics_with_global_params(agg_result, self.logger, cache_dict)
 
         return result
 
@@ -155,15 +152,13 @@ class SRRExecutor(Executor):
 
         if agg_result == None:
             raise ("Empty aggregation result")
-        # Paths to data directories and logs
-        log_path = os.path.join(get_output_directory_path(fl_ctx), "client_log.txt")
         # Save the global regression results
-        result = cem.perform_local_step3_persist_results(agg_result, log_path, cache_dict)
+        result = cem.perform_local_step3_persist_results(agg_result, self.logger, cache_dict)
         for output_file_type, output_file_data in result.get('output').items():
             if output_file_type == 'json':
                 self.save_json(output_file_data, "global_regression_result.json", fl_ctx)
             if output_file_type == 'html':
-                self.save_html(output_file_data, "global_regression_result.html", fl_ctx)
+                self.save_html(output_file_data, "index.html", fl_ctx)
             if output_file_type == 'csv':
                 self.save_stats_csv(output_file_data, ".csv", fl_ctx)
 
