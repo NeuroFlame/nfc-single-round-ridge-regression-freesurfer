@@ -5,7 +5,14 @@ import scipy as sp
 from utils.ancillary import *
 
 
-def perform_remote_step1(site_results, agg_cache_dict):
+def perform_remote_step1_compute_global_parameters(site_results, agg_cache_dict):
+    """
+    Computes the global beta vectors and other global parameters by aggregating local parameters.
+
+    :param site_results: output sent from clients
+    :param agg_cache_dict: cache maintained by the aggregator
+    :return: output to be sent to the clients along with the updated cache data
+    """
     global_results = {}
     num_sites = len(site_results.keys())
     roi_labels = sorted(list(site_results[next(iter(site_results))].keys()))
@@ -90,6 +97,13 @@ def perform_remote_step1(site_results, agg_cache_dict):
 
 
 def perform_remote_step2(site_results, agg_cache_dict):
+    """
+    Aggregates all the local performance metrics and computes global metrics.
+
+    :param site_results: output sent from clients
+    :param agg_cache_dict: cache maintained by the aggregator
+    :return: output to be sent to the clients along with the updated cache data
+    """
     from itertools import repeat
 
     def get_stats_to_dict(a, *b):

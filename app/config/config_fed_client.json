@@ -8,7 +8,7 @@
         "perform_local_client_step3"
       ],
       "executor": {
-        "path": "executor.srr_executor.SRRExecutor",
+        "path": "executor.executor.SRRExecutor",
         "args": {}
       }
     }

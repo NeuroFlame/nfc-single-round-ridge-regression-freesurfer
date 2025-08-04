@@ -96,7 +96,7 @@ class SRRExecutor(Executor):
         log_path = os.path.join(get_output_directory_path(fl_ctx), "client_log.txt")
 
         # Perform ridge regression using the specified covariates and dependent variables
-        result = cem.perform_client_step1(covariates_path, data_path, computation_parameters, log_path, cache_dict)
+        result = cem.perform_client_step1_validate_inputs_and_compute_local_model(covariates_path, data_path, computation_parameters, log_path, cache_dict)
 
         # Prepare the Shareable object to send the result to other components
         # outgoing_shareable = Shareable()
@@ -127,7 +127,7 @@ class SRRExecutor(Executor):
         log_path = os.path.join(get_output_directory_path(fl_ctx), "client_log.txt")
 
         # Perform ridge regression using the specified covariates and dependent variables
-        result = cem.perform_local_step2(agg_result, log_path, cache_dict)
+        result = cem.perform_local_step2_compute_metrics_with_global_params(agg_result, log_path, cache_dict)
 
         # Prepare the Shareable object to send the result to other components
         # outgoing_shareable = Shareable()
@@ -158,7 +158,7 @@ class SRRExecutor(Executor):
         # Paths to data directories and logs
         log_path = os.path.join(get_output_directory_path(fl_ctx), "client_log.txt")
         # Save the global regression results
-        result = cem.perform_local_step3(agg_result, log_path, cache_dict)
+        result = cem.perform_local_step3_persist_results(agg_result, log_path, cache_dict)
         for output_file_type, output_file_data in result.get('output').items():
             if output_file_type == 'json':
                 self.save_json(output_file_data, "global_regression_result.json", fl_ctx)

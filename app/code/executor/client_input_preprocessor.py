@@ -8,6 +8,9 @@ from . import client_constants
 
 def validate_and_get_inputs(covariates_path: str, data_path: str, computation_parameters: Dict[str, Any],
                             log_path: str) -> bool:
+    """
+       Performs validation on the covariates and data files against provided computation parameters
+    """
     try:
         # Extract covariates and dependent headers from computation parameters
         # If given as covariate:datatype as input format
@@ -42,13 +45,13 @@ def validate_and_get_inputs(covariates_path: str, data_path: str, computation_pa
             return False, None, None
 
         _log_message(f'-- Checking covariate file : {str(covariates_path)}', log_path, "info")
-        X = convert_data_to_given_type(covariates, expected_covariates_info, log_path,
-                                       ignore_subjects_with_missing_entries)
+        X = _convert_data_to_given_type(covariates, expected_covariates_info, log_path,
+                                        ignore_subjects_with_missing_entries)
         # dummy encoding categorical variables
         X = pd.get_dummies(X, drop_first=True)
 
         _log_message(f'-- Checking dependents file : {str(data_path)}', log_path, "info")
-        y = convert_data_to_given_type(data, expected_dependents_info, log_path, ignore_subjects_with_missing_entries)
+        y = _convert_data_to_given_type(data, expected_dependents_info, log_path, ignore_subjects_with_missing_entries)
 
         # If all checks pass
         return True, X, y
@@ -59,8 +62,13 @@ def validate_and_get_inputs(covariates_path: str, data_path: str, computation_pa
         return False, None, None
 
 
-def convert_data_to_given_type(data_df: pd.DataFrame, column_info: dict, log_path: str,
-                               ignore_subjects_with_missing_entries: bool):
+def _convert_data_to_given_type(data_df: pd.DataFrame, column_info: dict, log_path: str,
+                                ignore_subjects_with_missing_entries: bool):
+    """
+      Converts each dataframe column to its type specified in computation parameters. If
+      ignore_subjects_with_missing_entries is true, then the subjects with missing data will be ignored, otherwise
+      it gives errors.
+    """
     expected_column_names = column_info.keys()
 
     all_rows_to_ignore = _validate_data_datatypes(data_df, column_info, log_path)
@@ -118,6 +126,9 @@ def convert_data_to_given_type(data_df: pd.DataFrame, column_info: dict, log_pat
 
 
 def _validate_data_datatypes(data_df: pd.DataFrame, column_info: dict, log_path: str) -> list:
+    """
+     Validates if each dataframe column is compatible to the type specified in computation parameters.
+    """
     all_rows_to_ignore = set()
     try:
         for column_name, column_datatype in column_info.items():
@@ -192,21 +203,21 @@ def ignore_nans(X, y):
     """Removing rows containing NaN's in X and y"""
 
     if type(X) is pd.DataFrame:
-        X_ = X.values.astype('float64')
+        X_without_nans = X.values.astype('float64')
     else:
-        X_ = X
+        X_without_nans = X
 
     if type(y) is pd.Series:
-        y_ = y.values.astype('float64')
+        y_without_nans = y.values.astype('float64')
     else:
-        y_ = y
+        y_without_nans = y
 
-    finite_x_idx = np.isfinite(X_).all(axis=1)
-    finite_y_idx = np.isfinite(y_)
+    finite_x_idx = np.isfinite(X_without_nans).all(axis=1)
+    finite_y_idx = np.isfinite(y_without_nans)
 
     finite_idx = finite_y_idx & finite_x_idx
 
-    y_ = y_[finite_idx]
-    X_ = X_[finite_idx, :]
+    y_without_nans = y_without_nans[finite_idx]
+    X_without_nans = X_without_nans[finite_idx, :]
 
-    return X_, y_
+    return X_without_nans, y_without_nans

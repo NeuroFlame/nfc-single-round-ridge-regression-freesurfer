@@ -73,11 +73,8 @@ def get_parameters_file_path(fl_ctx: FLContext) -> str:
         return env_path
 
     # If PARAMETERS_FILE_PATH is not set, use the simulator and poc path
-    # repo_root_path = find_repo_root_path()
     repo_root_path = find_repo_root_path()
     simulator_and_poc_path = os.path.abspath(os.path.join(repo_root_path, "test_data/server/parameters.json"))
-
-    print("simulator_and_poc_path", simulator_and_poc_path)
 
     if os.path.exists(simulator_and_poc_path):
         logging.info(f"Parameters file path for simulator and poc: {simulator_and_poc_path}")

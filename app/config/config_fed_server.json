@@ -8,14 +8,14 @@
   "components": [
     {
       "id": "srr_aggregator",
-      "path": "aggregator.srr_aggregator.SRRAggregator",
+      "path": "aggregator.aggregator.SRRAggregator",
       "args": {}
     }
   ],
   "workflows": [
     {
       "id": "srr_workflow",
-      "path": "controller.srr_controller.SRRController",
+      "path": "controller.controller.SRRController",
       "args": {
       }
     }

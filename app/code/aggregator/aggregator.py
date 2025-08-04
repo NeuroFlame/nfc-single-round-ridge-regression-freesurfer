@@ -74,7 +74,7 @@ class SRRAggregator(Aggregator):
         contribution_round = fl_ctx.get_prop(key="CURRENT_ROUND", default=None)
 
         if (contribution_round == 0):
-            agg_result = am.perform_remote_step1(self.site_results[contribution_round], self.agg_cache)
+            agg_result = am.perform_remote_step1_compute_global_parameters(self.site_results[contribution_round], self.agg_cache)
             self.agg_cache = agg_result['cache']
             outgoing_shareable = Shareable()
             outgoing_shareable['result'] = agg_result['output']

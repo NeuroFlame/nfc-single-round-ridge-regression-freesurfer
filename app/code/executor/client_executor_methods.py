@@ -11,7 +11,18 @@ from . import client_input_preprocessor as cip
 from . import client_constants
 
 
-def perform_client_step1(covariates_path, data_path, computation_parameters, log_path, cache_dict):
+def perform_client_step1_validate_inputs_and_compute_local_model(covariates_path, data_path, computation_parameters, log_path, cache_dict):
+    """
+        Reads input data and covariates from the mentioned paths, performs validation. Upon successful validation,
+        computes local regression models and send these model parameters to the aggregator.
+
+        :param covariates_path: user path provided for the covariates.csv file
+        :param data_path: user path provided for the data.csv file
+        :param computation_parameters: input parameters
+        :param log_path: logger to save logs
+        :param cache_dict: client cache dict
+    """
+
     # Validate the run inputs (covariates, dependent data, and parameters)
     is_valid, covariates, data = cip.validate_and_get_inputs(covariates_path, data_path, computation_parameters,
                                                              log_path)
@@ -33,16 +44,15 @@ def perform_client_step1(covariates_path, data_path, computation_parameters, log
     for column in y.columns:
         curr_y = y[column]
 
-        X_, y_ = cip.ignore_nans(X, curr_y)
-        mean_y_local = np.mean(y_)
-        num_subjects = len(y_)
+        X_without_nans, y_without_nans = cip.ignore_nans(X, curr_y)
+        mean_y_local = np.mean(y_without_nans)
+        num_subjects = len(y_without_nans)
 
         # Printing local stats as well
-        # model = sm.OLS(y_, X_).fit()
-        model = _get_ridge_regression_model(X_, y_, lamb)
+        model = _get_ridge_regression_model(X_without_nans, y_without_nans, lamb)
         coefficients = model.params
         ssr = model.ssr
-        sse = _get_SSE(y_, model.predict(X_))
+        sse = _get_SSE(y_without_nans, model.predict(X_without_nans))
         p_values = model.pvalues
         t_stats = model.tvalues
         r_squared = model.rsquared
@@ -73,7 +83,14 @@ def perform_client_step1(covariates_path, data_path, computation_parameters, log
     return results
 
 
-def perform_local_step2(agg_results, log_path, cache_dict):
+def perform_local_step2_compute_metrics_with_global_params(agg_results, log_path, cache_dict):
+    """
+        Computes the SSE_local, SST_local and varX_matrix_local based on the global aggregated parameters
+
+        :param agg_results: results received from aggregator
+        :param log_path: logger to save logs
+        :param cache_dict: client cache dict
+    """
     def get_y_estimate(coefficients, X):
         return np.dot(coefficients, np.matrix.transpose(X))
 
@@ -89,12 +106,12 @@ def perform_local_step2(agg_results, log_path, cache_dict):
 
         curr_y = y[column]
 
-        X_, y_ = cip.ignore_nans(X, curr_y)
+        X_without_nans, y_without_nans = cip.ignore_nans(X, curr_y)
 
-        SSE_local.append(_get_SSE(y_, get_y_estimate(global_coefficients, X_)))
-        SST_local.append(np.sum(np.square(np.subtract(y_, mean_y_global))))
+        SSE_local.append(_get_SSE(y_without_nans, get_y_estimate(global_coefficients, X_without_nans)))
+        SST_local.append(np.sum(np.square(np.subtract(y_without_nans, mean_y_global))))
 
-        varX_matrix_local.append(np.dot(X_.T, X_).tolist())
+        varX_matrix_local.append(np.dot(X_without_nans.T, X_without_nans).tolist())
 
     output_dict = {
         "SSE_local": SSE_local,
@@ -106,7 +123,14 @@ def perform_local_step2(agg_results, log_path, cache_dict):
     return results
 
 
-def perform_local_step3(agg_results, log_path, cache_dict):
+def perform_local_step3_persist_results(agg_results, log_path, cache_dict):
+    """
+       Persists results in various file formats.
+
+       :param agg_results: results received from aggregator
+       :param log_path: logger to save logs
+       :param cache_dict: client cache dict
+    """
     import copy
     results = {'output': {'json': copy.deepcopy(agg_results),
                           'csv': _get_global_local_stats_df(copy.deepcopy(agg_results)),
@@ -118,6 +142,9 @@ def perform_local_step3(agg_results, log_path, cache_dict):
 
 
 def _get_global_local_stats_df(agg_results):
+    """
+    Returns a dataframe with local and global stats (columns) for each ROI (as row)
+    """
     import pandas as pd
 
     def _get_stats_df(temp_df, roi_names):
@@ -160,6 +187,9 @@ def _get_global_local_stats_df(agg_results):
 
 
 def _get_html_from_results(agg_results):
+    """
+        Returns html content to display for the results object.
+    """
     doc = dominate.document(title='Results')
     global_stats_label = OutputDictKeyLabels.GLOBAL_STATS.value
     local_stats_label = OutputDictKeyLabels.LOCAL_STATS.value
@@ -297,6 +327,9 @@ def _get_html_from_results(agg_results):
 
 
 def _get_SSE(y_actual, y_pred):
+    """
+    Computes Sum of Squared Errors (SSE)
+    """
     return np.sum((y_actual - y_pred) ** 2)
 
 

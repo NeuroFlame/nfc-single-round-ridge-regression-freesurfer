@@ -2,6 +2,9 @@ from enum import Enum, unique
 
 
 class GlobalOutputMetricLabels(Enum):
+    """
+      Holds the strings constants used for the displaying and gathering data
+    """
     COEFFICIENT = "Coefficient"
     R_SQUARE = "R Squared"
     T_STAT = "t Stat"
@@ -13,6 +16,9 @@ class GlobalOutputMetricLabels(Enum):
 
 @unique
 class OutputDictKeyLabels(Enum):
+    """
+        Holds the strings constants used for the displaying the results
+    """
     ROI = "ROI"
     GLOBAL_STATS = "global_stats"
     LOCAL_STATS = "local_stats"
