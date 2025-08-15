@@ -1,6 +1,6 @@
 ### Overview
 
-This computation performs a ridge regression on the merged datasets with freesurfer modality from multiple sites using specified covariates and dependent variables. This computation is designed to run within a federated learning environment, where each site performs a local regression analysis, and then global results are aggregated.
+This computation performs a ridge regression on datasets given in .csv format from multiple sites using specified covariates and dependent variables. The data used in this example uses dependent variables from thickness, surface and volume measurements of various cortical and sub-cortical brain regions. This data is extracted from sMRI scans pre-processed with Freesurfer recon-all pipeline. This computation is designed to run within a federated learning environment, where each site performs a local regression analysis, sends the ceofficients to aggregator, where they are averaged to compute the global result/model.
 
 ### Example Settings
 
@@ -31,9 +31,9 @@ This computation performs a ridge regression on the merged datasets with freesur
 
 ### Input Description
 
-Two files are required as input for this computation:
+Two files are required as input for this computation and must be named as below:
 
-1.  **Covariates File (**`covariates.csv`**)**
+1.  **Covariates/independent Variables File (**`covariates.csv`**)**
     
 2.  **Dependent Variables File (**`data.csv`**)**
     
