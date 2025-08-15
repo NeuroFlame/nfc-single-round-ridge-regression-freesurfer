@@ -9,7 +9,7 @@ from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable
 from nvflare.apis.signal import Signal
 from utils.logger import NFCLogger
-from utils.task_constants import *
+from utils import task_constants as tc
 from utils.utils import get_data_directory_path, get_output_directory_path
 
 from . import client_cache_store as ccs
@@ -50,19 +50,19 @@ class SRRExecutor(Executor):
         # Prepare the Shareable object to send the result to other components
         outgoing_shareable = Shareable()
 
-        if task_name == TASK_NAME_LOCAL_CLIENT_STEP1:
+        if task_name == tc.TASK_NAME_LOCAL_CLIENT_STEP1:
             client_result = self._do_task_perform_client_step1(shareable, fl_ctx, abort_signal,
                                                                cache_store.get_cache_dict())
             cache_store.update_cache_dict(client_result['cache'])
             outgoing_shareable['result'] = client_result['output']
 
-        elif task_name == TASK_NAME_LOCAL_CLIENT_STEP2:
+        elif task_name == tc.TASK_NAME_LOCAL_CLIENT_STEP2:
             client_result = self._do_task_perform_client_step2(shareable, fl_ctx, abort_signal,
                                                                cache_store.get_cache_dict())
             cache_store.update_cache_dict(client_result['cache'])
             outgoing_shareable['result'] = client_result['output']
 
-        elif task_name == TASK_NAME_LOCAL_CLIENT_STEP3:
+        elif task_name == tc.TASK_NAME_LOCAL_CLIENT_STEP3:
             client_result = self._do_task_perform_client_step3(shareable, fl_ctx, abort_signal,
                                                                cache_store.get_cache_dict())
             cache_store.remove_cache()

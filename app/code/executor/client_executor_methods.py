@@ -2,8 +2,7 @@ import dominate
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-from dominate.tags import *
-from utils.ancillary import *
+from utils.ancillary import GlobalOutputMetricLabels, OutputDictKeyLabels
 
 from . import client_constants
 from . import client_input_preprocessor as cip
@@ -187,6 +186,8 @@ def _get_global_local_stats_df(agg_results):
 
 
 def _get_html_from_results(agg_results):
+    from dominate import tags
+
     """
         Returns html content to display for the results object.
     """
@@ -196,7 +197,7 @@ def _get_html_from_results(agg_results):
 
     # Add style
     with doc.head:
-        style('''
+        tags.style('''
             body {
                 font-family: sans-serif;
             }
@@ -250,78 +251,78 @@ def _get_html_from_results(agg_results):
 
     # Add document body
     with doc:
-        h1('Results')
-        hr()
+        tags.h1('Results')
+        tags.hr()
         for result in agg_results:
-            h2(result[OutputDictKeyLabels.ROI.value])
-            with table():
-                with tbody():
-                    with tr():
-                        with td(rowspan=6):
-                            h3('Globals')
+            tags.h2(result[OutputDictKeyLabels.ROI.value])
+            with tags.table():
+                with tags.tbody():
+                    with tags.tr():
+                        with tags.td(rowspan=6):
+                            tags.h3('Globals')
                         global_labels = result[global_stats_label][GlobalOutputMetricLabels.COVARIATE_LABELS.value]
                         global_labels.insert(0, '')
                         for i in global_labels:
-                            td(i)
-                    with tr():
+                            tags.td(i)
+                    with tags.tr():
                         global_coefficient = result[global_stats_label][GlobalOutputMetricLabels.COEFFICIENT.value]
                         global_coefficient.insert(0, GlobalOutputMetricLabels.COEFFICIENT.value)
                         for i in global_coefficient:
-                            td(i)
-                    with tr():
+                            tags.td(i)
+                    with tags.tr():
                         global_tstat = result[global_stats_label][GlobalOutputMetricLabels.T_STAT.value]
                         global_tstat.insert(0, GlobalOutputMetricLabels.T_STAT.value)
                         for i in global_tstat:
-                            td(i)
-                    with tr():
+                            tags.td(i)
+                    with tags.tr():
                         global_pvalue = result[global_stats_label][GlobalOutputMetricLabels.P_VALUE.value]
                         global_pvalue.insert(0, GlobalOutputMetricLabels.P_VALUE.value)
                         for i in global_pvalue:
-                            td(i)
-                    with tr():
+                            tags.td(i)
+                    with tags.tr():
                         global_rsquared = result[global_stats_label][GlobalOutputMetricLabels.R_SQUARE.value]
-                        td(GlobalOutputMetricLabels.R_SQUARE.value)
-                        td(global_rsquared, colspan=5)
-                    with tr():
+                        tags.td(GlobalOutputMetricLabels.R_SQUARE.value)
+                        tags.td(global_rsquared, colspan=5)
+                    with tags.tr():
                         global_degfree = result[global_stats_label][
                             GlobalOutputMetricLabels.DEGREES_OF_FREEDOM.value]
-                        td(GlobalOutputMetricLabels.DEGREES_OF_FREEDOM.value)
-                        td(global_degfree, colspan=5)
+                        tags.td(GlobalOutputMetricLabels.DEGREES_OF_FREEDOM.value)
+                        tags.td(global_degfree, colspan=5)
                 for site in result[OutputDictKeyLabels.LOCAL_STATS.value]:
-                    with tbody():
-                        with tr():
-                            with td(rowspan=6):
-                                h3(site)
+                    with tags.tbody():
+                        with tags.tr():
+                            with tags.td(rowspan=6):
+                                tags.h3(site)
                             global_labels = result[global_stats_label][
                                 GlobalOutputMetricLabels.COVARIATE_LABELS.value]
                             for j in global_labels:
-                                td(j)
-                        with tr():
+                                tags.td(j)
+                        with tags.tr():
                             local_coefficient = result[local_stats_label][site][
                                 GlobalOutputMetricLabels.COEFFICIENT.value]
                             local_coefficient.insert(0, GlobalOutputMetricLabels.COEFFICIENT.value)
                             for i in local_coefficient:
-                                td(i)
-                        with tr():
+                                tags.td(i)
+                        with tags.tr():
                             local_tstat = result[local_stats_label][site][GlobalOutputMetricLabels.T_STAT.value]
                             local_tstat.insert(0, GlobalOutputMetricLabels.T_STAT.value)
                             for i in local_tstat:
-                                td(i)
-                        with tr():
+                                tags.td(i)
+                        with tags.tr():
                             local_pvalue = result[local_stats_label][site][GlobalOutputMetricLabels.P_VALUE.value]
                             local_pvalue.insert(0, GlobalOutputMetricLabels.P_VALUE.value)
                             for i in local_pvalue:
-                                td(i)
-                        with tr():
+                                tags.td(i)
+                        with tags.tr():
                             local_errors = result[local_stats_label][site][
                                 GlobalOutputMetricLabels.SUM_OF_SQUARES_ERROR.value]
-                            td(GlobalOutputMetricLabels.SUM_OF_SQUARES_ERROR.value)
-                            td(local_errors, colspan=5)
-                        with tr():
+                            tags.td(GlobalOutputMetricLabels.SUM_OF_SQUARES_ERROR.value)
+                            tags.td(local_errors, colspan=5)
+                        with tags.tr():
                             local_rsquared = result[local_stats_label][site][
                                 GlobalOutputMetricLabels.R_SQUARE.value]
-                            td(GlobalOutputMetricLabels.R_SQUARE.value)
-                            td(local_rsquared, colspan=5)
+                            tags.td(GlobalOutputMetricLabels.R_SQUARE.value)
+                            tags.td(local_rsquared, colspan=5)
 
     return str(doc)
 

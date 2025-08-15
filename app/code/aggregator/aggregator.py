@@ -6,7 +6,7 @@ from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable
 from nvflare.app_common.abstract.aggregator import Aggregator
 from utils.logger import NFCLogger
-from utils.task_constants import *
+from utils import task_constants as tc
 from utils.utils import get_output_directory_path
 
 from . import aggregator_methods as am
