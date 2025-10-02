@@ -95,7 +95,7 @@ The key steps of the algorithm include:
 
 *   The data.csv and covariates.csv provided by each site follows the specified format (standardized covariate and dependent variable headers).
     
-*   If the freesurfer data is not in the csv format, please use the code [data\_generator.py](other_references/data_generator.py) to generate csv file from .aseg freesurfer files.
+*   If the freesurfer data is not in the csv format, please use the tool [nvflare-aseg-to-csv](https://neuroflame.github.io/nvflare-aseg-to-csv/) to generate csv file from .aseg freesurfer files.
     
 *   The computation is run in a federated environment, and each site contributes valid data.
 
