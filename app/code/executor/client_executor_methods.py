@@ -37,9 +37,10 @@ def perform_client_step1_validate_inputs_and_compute_local_model(covariates_path
 
     # Initialize results storage
     output = {}
+    y_labels= y.columns.tolist()
 
     # Calculate local statistics for each ROI
-    for column in y.columns:
+    for column in y_labels:
         curr_y = y[column]
 
         X_without_nans, y_without_nans = _ignore_nans(X, curr_y)
@@ -66,6 +67,7 @@ def perform_client_step1_validate_inputs_and_compute_local_model(covariates_path
             GlobalOutputMetricLabels.COVARIATE_LABELS.value: X_labels,
             GlobalOutputMetricLabels.SUM_OF_SQUARES_ERROR.value: sse,
             "ROI Label": column,
+            "y_labels" : y_labels,
             "mean_y_local": mean_y_local,
             "num_subjects": num_subjects
         }

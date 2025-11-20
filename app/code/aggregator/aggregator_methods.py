@@ -15,7 +15,8 @@ def perform_remote_step1_compute_global_parameters(site_results, agg_cache_dict)
     """
     global_results = {}
     num_sites = len(site_results.keys())
-    roi_labels = sorted(list(site_results[next(iter(site_results))].keys()))
+    site_id = next(iter(site_results))
+    roi_labels = site_results[site_id][next(iter(site_results[site_id]))]['y_labels']
     # print("\n\n\n\n Remote step1 input:")
     # print(site_results)
     # print("\n\n\n\n")
@@ -185,6 +186,20 @@ def perform_remote_step2(site_results, agg_cache_dict):
     keys2 = [s.value for s in OutputDictKeyLabels]
     dict_list = get_stats_to_dict(keys2, y_labels, global_dict_list, a_dict)
 
-    results = {'output': dict_list, 'cache': agg_cache_dict}
+    results = {'output': _round_floats_in_result(dict_list, decimal_places=4), 'cache': agg_cache_dict}
 
     return results
+
+
+def _round_floats_in_result(obj, decimal_places=4):
+    """
+    Recursively rounds float values in a dictionary or list.
+    """
+    if isinstance(obj, float):
+        return round(obj, decimal_places)
+    elif isinstance(obj, dict):
+        return {k: _round_floats_in_result(v, decimal_places) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_round_floats_in_result(elem, decimal_places) for elem in obj]
+    else:
+        return obj
