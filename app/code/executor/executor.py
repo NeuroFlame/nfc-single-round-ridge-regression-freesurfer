@@ -151,7 +151,7 @@ class SRRExecutor(Executor):
         agg_result = shareable.get("result")
 
         if agg_result == None:
-            raise ("Empty aggregation result")
+            raise ValueError("Empty aggregation result")
         # Save the global regression results
         result = cem.perform_local_step3_persist_results(agg_result, self.logger, cache_dict)
         for output_file_type, output_file_data in result.get('output').items():

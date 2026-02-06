@@ -1,76 +1,210 @@
+# create_run_kits.py
 import os
 import shutil
+import json
 import logging
-from typing import List
+from typing import List, Dict, Optional
+
 from .create_job import create_job
+
 # Set up logging
 logger = logging.getLogger(__name__)
+
+
+def _normalize_role(role: Optional[str]) -> str:
+    r = (role or "observer").strip().lower()
+    return "contributor" if r == "contributor" else "observer"
+
+
+def _copy_directory(src: str, dest: str) -> None:
+    """Deterministic overwrite."""
+    if os.path.exists(dest):
+        shutil.rmtree(dest)
+    shutil.copytree(src, dest)
+
+
+def _resolve_run_kit_root(site_kit_root: str) -> str:
+    """
+    Resolve the directory that NeuroFLAME will mount as /workspace/runKit.
+
+    NeuroFLAME canonical (expected):
+        <site_kit_root>/startup/...
+
+    Compatibility fallback (only if the kit already contains it):
+        <site_kit_root>/runKit/startup/...
+
+    IMPORTANT:
+      - We prefer the NeuroFLAME canonical layout.
+      - We do NOT create nested runKit folders in provisioning.
+    """
+    # Prefer NeuroFLAME canonical layout
+    direct = site_kit_root
+    if os.path.isdir(os.path.join(direct, "startup")):
+        return direct
+
+    # Fallback for legacy/alternate kit layouts
+    nested = os.path.join(site_kit_root, "runKit")
+    if os.path.isdir(nested) and os.path.isdir(os.path.join(nested, "startup")):
+        logger.warning(
+            "Detected nested kit layout under '<site>/runKit/startup'. "
+            "NeuroFLAME canonical layout is '<site>/startup'. Using nested layout for compatibility.",
+            extra={"site_kit_root": site_kit_root, "resolved": nested},
+        )
+        return nested
+
+    raise FileNotFoundError(
+        f"Could not resolve runKit root under: {site_kit_root}\n"
+        f"Expected either:\n"
+        f"  - {os.path.join(site_kit_root, 'startup')}\n"
+        f"  - {os.path.join(site_kit_root, 'runKit', 'startup')}"
+    )
+
+
+def _write_participant_role_json(run_kit_root: str, role: str) -> None:
+    """
+    Write role metadata used by NeuroFLAME edge launcher to decide mount policy.
+
+    Canonical location:
+        <run_kit_root>/startup/participant_role.json
+
+    Payload contains BOTH keys for compatibility:
+      - "role" (used by current runStart.ts)
+      - "participant_role" (allowed for future migration/clarity)
+    """
+    role_norm = _normalize_role(role)
+
+    payload = {
+        "role": role_norm,
+        "participant_role": role_norm,
+    }
+
+    startup_dir = os.path.join(run_kit_root, "startup")
+    os.makedirs(startup_dir, exist_ok=True)
+
+    out_path = os.path.join(startup_dir, "participant_role.json")
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+
+    logger.info(f"Wrote participant_role.json to: {out_path}")
+
 
 def create_run_kits(
     path_app: str,
     user_ids: List[str],
+    user_roles: Dict[str, str],
     startup_kits_path: str,
     output_directory: str,
     computation_parameters: str,
     host_identifier: str,
-    admin_name: str
+    admin_name: str,
 ) -> None:
-    logger.info('Running create_run_kits command')
+    """
+    Provision run artifacts for NeuroFLAME + NVFlare.
 
-    try:
-        # Ensure the output directory exists
-        os.makedirs(output_directory, exist_ok=True)
+    Per-site:
+      - Copy startup kit folder into: runKits/<site_name>
+      - Write: <mounted runKit>/startup/participant_role.json
+        (used by NeuroFLAME edge launcher to decide whether to mount /workspace/data)
 
-        # Get site directories excluding the host_identifier and adminName
-        site_directories = [
-            name for name in os.listdir(startup_kits_path)
-            if os.path.isdir(os.path.join(startup_kits_path, name)) and name not in [host_identifier, admin_name]
-        ]
+    Central node bundle:
+      - centralNode/job         (created by create_job.py)
+      - centralNode/server      (startup kit)
+      - centralNode/admin       (startup kit)
+      - centralNode/parameters.json
 
-        logger.info(f'Found site directories: {site_directories}')
+    Contract with create_job.py:
+      - create_job.py must generate a VALID NVFlare job definition under centralNode/job,
+        including:
+          - meta.json with deploy_map assigning exactly ONE app per site
+          - app_* folders consistent with that deploy_map
+          - correct client config materialization (config_fed_client.json)
+    """
+    logger.info("Running create_run_kits command")
+    os.makedirs(output_directory, exist_ok=True)
 
-        # Copy each site's startupKit to the runKits directory
-        for site in site_directories:
-            source_path = os.path.join(startup_kits_path, site)
-            destination_path = os.path.join(output_directory, site)
-            logger.info(f'Copying {source_path} to {destination_path}')
-            copy_directory(source_path, destination_path)
+    # Normalize roles and split
+    normalized_roles: Dict[str, str] = {}
+    contributors: List[str] = []
+    observers: List[str] = []
 
-        # Create the central node runKit
-        central_node_path = os.path.join(output_directory, 'centralNode')
-        os.makedirs(central_node_path, exist_ok=True)
-        logger.info(f'Created central node directory at {central_node_path}')
-        job_path = os.path.join(central_node_path, 'job')
-        create_job(path_app, job_path, min_clients=len(user_ids))
+    for uid in user_ids:
+        s_uid = str(uid)
+        role = _normalize_role(user_roles.get(s_uid))
+        normalized_roles[s_uid] = role
+        if role == "contributor":
+            contributors.append(s_uid)
+        else:
+            observers.append(s_uid)
 
-        # Copy the server's startupKit to the central node runKit
-        server_startup_kit_path = os.path.join(startup_kits_path, host_identifier)
-        copy_directory(server_startup_kit_path, os.path.join(central_node_path, 'server'))
-        logger.info(f'Copied server startup kit from {server_startup_kit_path} to {central_node_path}/server')
+    logger.info(f"Contributors: {contributors}")
+    logger.info(f"Observers: {observers}")
 
-        # Copy the admin's startupKit to the central node runKit
-        admin_startup_kit_path = os.path.join(startup_kits_path, admin_name)
-        copy_directory(admin_startup_kit_path, os.path.join(central_node_path, 'admin'))
-        logger.info(f'Copied admin startup kit from {admin_startup_kit_path} to {central_node_path}/admin')
+    # Copy requested site startup kits + inject participant_role.json
+    for uid in user_ids:
+        s_uid = str(uid)
+        role = normalized_roles[s_uid]
 
-        # Create or modify computationParameters.json within the central node's runKit
-        parameters_path = os.path.join(central_node_path, 'parameters.json')
-        with open(parameters_path, 'w', encoding='utf-8') as f:
-            f.write(computation_parameters)
-        logger.info(f'Created computation parameters at {parameters_path}')
+        src = os.path.join(startup_kits_path, s_uid)
+        if not os.path.isdir(src):
+            available = sorted(
+                d for d in os.listdir(startup_kits_path)
+                if os.path.isdir(os.path.join(startup_kits_path, d))
+            )
+            raise FileNotFoundError(
+                f"Expected startup kit folder for site '{s_uid}' at: {src}\n"
+                f"Available folders: {available}"
+            )
 
-        logger.info('RunKits created successfully.')
-    except Exception as error:
-        logger.error(f'Error creating runKits: {error}')
-        raise  # Rethrow or handle as needed
+        dest_site_kit_root = os.path.join(output_directory, s_uid)
+        _copy_directory(src, dest_site_kit_root)
 
-# Helper function to copy directories recursively
-def copy_directory(src: str, dest: str) -> None:
-    if os.path.exists(dest):
-        shutil.rmtree(dest)  # Remove existing destination directory
-        logger.info(f'Removed existing directory at {dest}')
-    shutil.copytree(src, dest)
-    logger.info(f'Copied directory from {src} to {dest}')
+        run_kit_root = _resolve_run_kit_root(dest_site_kit_root)
+        _write_participant_role_json(run_kit_root, role)
 
-# Example usage:
-# create_run_kits('/path/to/startupKits', '/path/to/outputDirectory', '{"param": "value"}', 'example.com', 'admin@admin.com')
+    # Central node bundle
+    central_node_path = os.path.join(output_directory, "centralNode")
+    os.makedirs(central_node_path, exist_ok=True)
+
+    # Job bundle
+    job_path = os.path.join(central_node_path, "job")
+    create_job(
+        app_path=path_app,
+        job_path=job_path,
+        min_clients=len(contributors),
+        user_ids=[str(u) for u in user_ids],
+        user_roles=normalized_roles,
+        server_site_name="server",
+        observer_app_path=None,  # set if you maintain a distinct observer template app
+    )
+
+    # Server kit
+    server_startup_kit_path = os.path.join(startup_kits_path, host_identifier)
+    if not os.path.isdir(server_startup_kit_path):
+        available = sorted(
+            d for d in os.listdir(startup_kits_path)
+            if os.path.isdir(os.path.join(startup_kits_path, d))
+        )
+        raise FileNotFoundError(
+            f"Server startup kit folder not found: {server_startup_kit_path}\n"
+            f"Available folders: {available}"
+        )
+    _copy_directory(server_startup_kit_path, os.path.join(central_node_path, "server"))
+
+    # Admin kit
+    admin_startup_kit_path = os.path.join(startup_kits_path, admin_name)
+    if not os.path.isdir(admin_startup_kit_path):
+        available = sorted(
+            d for d in os.listdir(startup_kits_path)
+            if os.path.isdir(os.path.join(startup_kits_path, d))
+        )
+        raise FileNotFoundError(
+            f"Admin startup kit folder not found: {admin_startup_kit_path}\n"
+            f"Available folders: {available}"
+        )
+    _copy_directory(admin_startup_kit_path, os.path.join(central_node_path, "admin"))
+
+    # Parameters
+    with open(os.path.join(central_node_path, "parameters.json"), "w", encoding="utf-8") as f:
+        f.write(computation_parameters)
+
+    logger.info("RunKits created successfully.")
