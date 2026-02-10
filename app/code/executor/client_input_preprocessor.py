@@ -37,6 +37,7 @@ def validate_and_get_inputs(covariates_path: str, data_path: str, computation_pa
             logger.info(error_message)
             return False, None, None
 
+
         # Validate data headers
         data_headers = set(data.columns)
         if not set(expected_dependents).issubset(data_headers):
@@ -45,16 +46,16 @@ def validate_and_get_inputs(covariates_path: str, data_path: str, computation_pa
             logger.info(error_message)
             return False, None, None
 
-        logger.info(f'-- Checking covariate file : {str(covariates_path)}')
 
-        X = _convert_data_to_given_type(covariates, expected_covariates_info, logger,
-                                        ignore_subjects_with_missing_entries)
+        covariates = covariates[expected_covariates]
+        data = data[expected_dependents]
+
+        logger.info(f'-- Checking covariate and dependent files : {str(covariates_path)}, {str(data_path)}')
+
+        X, y = _convert_data_to_given_type(covariates, expected_covariates_info, data, expected_dependents_info,
+                                           logger, ignore_subjects_with_missing_entries)
         # dummy encoding categorical variables
         X = pd.get_dummies(X, drop_first=True)
-
-        logger.info(f'-- Checking dependents file : {str(data_path)}')
-
-        y = _convert_data_to_given_type(data, expected_dependents_info, logger, ignore_subjects_with_missing_entries)
 
         # If all checks pass
         return True, X, y
@@ -65,23 +66,34 @@ def validate_and_get_inputs(covariates_path: str, data_path: str, computation_pa
         return False, None, None
 
 
-def _convert_data_to_given_type(data_df: pd.DataFrame, column_info: dict, logger: NFCLogger,
+def _convert_data_to_given_type(covariates: pd.DataFrame, covariate_info: dict, data: pd.DataFrame,
+                                dependent_info: dict, logger: NFCLogger,
                                 ignore_subjects_with_missing_entries: bool):
     """
       Converts each dataframe column to its type specified in computation parameters. If
       ignore_subjects_with_missing_entries is true, then the subjects with missing data will be ignored, otherwise
       it gives errors.
     """
+    column_info = dict(covariate_info)
+    column_info.update(dependent_info)
+
     expected_column_names = column_info.keys()
 
-    all_rows_to_ignore = _validate_data_datatypes(data_df, column_info, logger)
+    assert len(covariates) == len(data), ("Covariates and Data have different number of rows. Please make sure both "
+                                          "of them have the same number of rows.")
+
+    #Combine data frames and
+    combined_df = pd.concat([covariates, data], axis=1)
+    combined_df = combined_df[list(expected_column_names)]
+
+    all_rows_to_ignore = _validate_data_datatypes(combined_df, column_info, logger)
     if len(all_rows_to_ignore) > 0:
         if ignore_subjects_with_missing_entries:
-            logger.info(f'-- Ignored following rows with incorrect column values: {str(all_rows_to_ignore)}')
-            data_df.drop(data_df.index[all_rows_to_ignore], inplace=True)
+            logger.info(f'-- Ignored following rows with incorrect column values: {str(_get_user_row_numbers(all_rows_to_ignore))}')
+            combined_df.drop(all_rows_to_ignore, inplace=True)
         else:
             err_msg = (f'Following rows have empty or invalid entries for columns. Either choose to ignore these rows '
-                       f'or correct the data and try again. See log file for details: {str(all_rows_to_ignore)}')
+                       f'or correct the data and try again. See log file for details: {str(_get_user_row_numbers(all_rows_to_ignore))}')
             logger.error(err_msg)
             raise Exception(err_msg)
 
@@ -93,14 +105,14 @@ def _convert_data_to_given_type(data_df: pd.DataFrame, column_info: dict, logger
         for column_name, column_datatype in column_info.items():
             logger.info(f'Casting datatype of column: {column_name} to the requested datatype : {column_datatype}')
             if column_datatype.strip().lower() == "int":
-                data_df[column_name] = pd.to_numeric(data_df[column_name], errors='coerce').astype(
+                combined_df[column_name] = pd.to_numeric(combined_df[column_name], errors='coerce').astype(
                     'int')  # or .astype('Int64')
             elif column_datatype.strip().lower() == "float":
-                data_df[column_name] = pd.to_numeric(data_df[column_name], errors='coerce').astype('float')
+                combined_df[column_name] = pd.to_numeric(combined_df[column_name], errors='coerce').astype('float')
             elif column_datatype.strip().lower() == "str":
-                data_df[column_name] = data_df[column_name].astype('object')
+                combined_df[column_name] = combined_df[column_name].astype('object')
             elif column_datatype.strip().lower() == "bool":
-                data_df[column_name] = pd.to_numeric(data_df[column_name], errors='coerce').astype('bool')
+                combined_df[column_name] = pd.to_numeric(combined_df[column_name], errors='coerce').astype('bool')
             else:
                 err_msg = (f'Invalid datatype provided in the input for column : {column_name} and datatype: '
                            f'{column_datatype}. Allowed datatypes are int, float, str, bool.')
@@ -108,26 +120,30 @@ def _convert_data_to_given_type(data_df: pd.DataFrame, column_info: dict, logger
                 raise Exception(err_msg)
 
         # Check for null or NaNs in the converted data
-        curr_rows_to_ignore = data_df[data_df.isnull().any(axis=1)].index.tolist()
+        curr_rows_to_ignore = combined_df[combined_df.isnull().any(axis=1)].index.tolist()
         if len(curr_rows_to_ignore) > 0:
             if ignore_subjects_with_missing_entries:
-                logger.info(f'-- Ignored following rows with incorrect column values: {str(all_rows_to_ignore)}')
-                data_df.drop(data_df.index[curr_rows_to_ignore], inplace=True)
+                logger.info(f'-- Ignored following rows with incorrect column values: {str(_get_user_row_numbers(curr_rows_to_ignore))}')
+                combined_df.drop(curr_rows_to_ignore, inplace=True)
             else:
                 err_msg = (f'Following rows have empty or invalid entries for columns after converting to their '
                            f'respective datatypes. Either choose to ignore these rows or correct the data and'
-                           f' try again. See log file for details: {str(all_rows_to_ignore)}')
+                           f' try again. See log file for details: {str(_get_user_row_numbers(curr_rows_to_ignore))}')
                 logger.error(err_msg)
                 raise Exception(err_msg)
 
-        data_df = data_df[expected_column_names]
+        combined_df = combined_df[expected_column_names]
 
     except Exception as e:
         error_message = f"An error occurred during type conversion for data: {str(e)}"
         logger.error(error_message)
         raise (e)
 
-    return data_df
+    #Separate covariates and data into separate data frames
+    covariates_X_df = combined_df[list(covariate_info.keys())]
+    data_y_df = combined_df[list(dependent_info.keys())]
+
+    return covariates_X_df, data_y_df
 
 
 def _validate_data_datatypes(data_df: pd.DataFrame, column_info: dict, logger: NFCLogger) -> list:
@@ -137,7 +153,7 @@ def _validate_data_datatypes(data_df: pd.DataFrame, column_info: dict, logger: N
     all_rows_to_ignore = set()
     try:
         for column_name, column_datatype in column_info.items():
-            logger.info(f'Validating column: {column_name} with requested datatype : {column_datatype}')
+            logger.info(f'\nValidating column: {column_name} with requested datatype : {column_datatype}')
             if column_datatype.strip().lower() == "int":
                 temp = pd.to_numeric(data_df[column_name], errors='coerce').astype('int')  # or .astype('Int64')
             elif column_datatype.strip().lower() == "float":
@@ -146,7 +162,7 @@ def _validate_data_datatypes(data_df: pd.DataFrame, column_info: dict, logger: N
                 temp = data_df[column_name].astype('object')
             elif column_datatype.strip().lower() == "bool":
                 # Converting first to 'int' type to make sure all the possible values are converted correctly
-                temp = pd.to_numeric(data_df[column_name], errors='coerce').astype('int')  # or .astype('Int64')
+                temp = pd.to_numeric(data_df[column_name], errors='coerce').astype('Int64')  # or .astype('int')
             else:
                 err_msg = (f'Invalid datatype provided in the input for column : {column_name} and datatype: '
                            f'{column_datatype}. Allowed datatypes are int, float, str, bool.')
@@ -163,7 +179,7 @@ def _validate_data_datatypes(data_df: pd.DataFrame, column_info: dict, logger: N
             all_rows_to_ignore = all_rows_to_ignore.union(rows_to_ignore)
 
             if len(rows_to_ignore) > 0:
-                logger.info(f'Rows with incorrect values for column {column_name} : {str(rows_to_ignore)}')
+                logger.info(f'Rows with incorrect values for column {column_name} : {str(_get_user_row_numbers(rows_to_ignore))}')
 
             else:
                 logger.info(
@@ -175,3 +191,7 @@ def _validate_data_datatypes(data_df: pd.DataFrame, column_info: dict, logger: N
         raise (e)
 
     return list(all_rows_to_ignore)
+
+
+def _get_user_row_numbers(df_index_list):
+    return [ri + 1 for ri in df_index_list]

@@ -66,7 +66,7 @@ class SRRExecutor(Executor):
             client_result = self._do_task_perform_client_step3(shareable, fl_ctx, abort_signal,
                                                                cache_store.get_cache_dict())
             cache_store.remove_cache()
-            self.logger.format_log()
+            #self.logger.format_log()
             # Sending empty sharable object as result
 
         else:

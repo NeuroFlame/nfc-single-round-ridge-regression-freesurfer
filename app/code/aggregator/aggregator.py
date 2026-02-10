@@ -91,7 +91,7 @@ class SRRAggregator(Aggregator):
             outgoing_shareable['result'] = agg_result['output']
 
             self.logger.close()
-            self.logger.format_log()
+            #self.logger.format_log()
 
             return outgoing_shareable
         else:
