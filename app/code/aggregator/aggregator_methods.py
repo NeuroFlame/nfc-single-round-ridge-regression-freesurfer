@@ -545,58 +545,108 @@ def _truthy(v: Optional[str]) -> bool:
     return str(v).strip().lower() in ("1", "true", "yes", "y", "on")
 
 
+def _running_in_docker() -> bool:
+    try:
+        return os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv")
+    except Exception:
+        return False
+
+def _normalize_fileserver_url(url: str) -> str:
+    u = (url or "").strip()
+    if not u:
+        return u
+
+    # Common container trap: localhost/127.0.0.1 points to *this* container.
+    if (u.startswith("http://localhost") or u.startswith("https://localhost") or "://127.0.0.1" in u) and _running_in_docker():
+        return (
+            u.replace("localhost", "host.docker.internal")
+             .replace("127.0.0.1", "host.docker.internal")
+        )
+    return u
+
+
 def upload_results_to_fileserver(results_zip_path: str, fl_ctx: Optional[FLContext] = None) -> Dict[str, Any]:
     """Upload results.zip to NeuroFLAME fileServer so clients/observers can download it.
 
-    fileServer endpoint:
-      POST /upload_results/:consortiumId/:runId   (multipart/form-data field name: 'file')
+    Endpoint:
+      POST {NEUROFLAME_FILESERVER_URL}/upload_results/{NEUROFLAME_CONSORTIUM_ID}/{NEUROFLAME_RUN_ID}
+      multipart/form-data field name: 'file'
+      header: x-access-token: {NEUROFLAME_ACCESS_TOKEN}
 
-    Required env vars (set by NeuroFLAME runtime on the server container):
-      - NEUROFLAME_FILESERVER_URL     e.g. http://fileserver:3002
+    Required env vars (ONLY these):
+      - NEUROFLAME_FILESERVER_URL
       - NEUROFLAME_CONSORTIUM_ID
       - NEUROFLAME_RUN_ID
-      - token in one of:
-          NEUROFLAME_RESULTS_UPLOAD_TOKEN
-          NEUROFLAME_UPLOAD_TOKEN
-          NEUROFLAME_DOWNLOAD_TOKEN
+      - NEUROFLAME_ACCESS_TOKEN
 
-    Debug env vars:
-      - NEUROFLAME_RESULTS_UPLOAD_ENABLED   (default: true)
-      - NEUROFLAME_RESULTS_UPLOAD_DEBUG     (default: false)
+    Optional debug env vars:
+      - NEUROFLAME_RESULTS_UPLOAD_ENABLED (default: true)
+      - NEUROFLAME_RESULTS_UPLOAD_DEBUG   (default: false)
+      - NEUROFLAME_FILESERVER_PREFLIGHT   (default: false)  # GET /health before upload (non-fatal)
     """
+
+    def _running_in_docker() -> bool:
+        try:
+            return os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv")
+        except Exception:
+            return False
+
+    def _normalize_fileserver_url(u: Optional[str]) -> Optional[str]:
+        """Inside Docker, rewrite localhost/127.0.0.1 to host.docker.internal (Mac Docker Desktop)."""
+        if not u:
+            return u
+        s = u.strip()
+        if not s:
+            return s
+        if _running_in_docker() and (
+            s.startswith("http://localhost")
+            or s.startswith("https://localhost")
+            or "://127.0.0.1" in s
+        ):
+            return s.replace("localhost", "host.docker.internal").replace("127.0.0.1", "host.docker.internal")
+        return s
+
     enabled = _env("NEUROFLAME_RESULTS_UPLOAD_ENABLED", "true")
     debug = _env("NEUROFLAME_RESULTS_UPLOAD_DEBUG", "false")
+    preflight = _env("NEUROFLAME_FILESERVER_PREFLIGHT", "false")
 
     if not _truthy(enabled):
         logger.info("NeuroFLAME results upload disabled via NEUROFLAME_RESULTS_UPLOAD_ENABLED=%s", enabled)
         return {"uploaded": False, "reason": "disabled"}
 
+    # --- ONLY the env vars you specified ---
     file_server = _env("NEUROFLAME_FILESERVER_URL")
     consortium_id = _env("NEUROFLAME_CONSORTIUM_ID")
     run_id = _env("NEUROFLAME_RUN_ID")
-    token = (
-        _env("NEUROFLAME_RESULTS_UPLOAD_TOKEN")
-        or _env("NEUROFLAME_UPLOAD_TOKEN")
-        or _env("NEUROFLAME_DOWNLOAD_TOKEN")
-    )
+    token = _env("NEUROFLAME_ACCESS_TOKEN")
 
     if not all([file_server, consortium_id, run_id, token]):
-        # Fallback: read NeuroFLAME context from parameters.json (written during provisioning)
-        nf = _load_neuroflame_context_from_parameters()
-        file_server = file_server or nf.get('file_server_url')
-        consortium_id = consortium_id or nf.get('consortium_id')
-        run_id = run_id or nf.get('run_id')
-        token = token or nf.get('token')
+        missing = [
+            k for k, v in {
+                "NEUROFLAME_FILESERVER_URL": file_server,
+                "NEUROFLAME_CONSORTIUM_ID": consortium_id,
+                "NEUROFLAME_RUN_ID": run_id,
+                "NEUROFLAME_ACCESS_TOKEN": token,
+            }.items()
+            if not v
+        ]
+        logger.warning("NeuroFLAME results upload skipped: missing env vars: %s", ", ".join(missing))
+        return {"uploaded": False, "reason": "missing_env", "missing": missing}
 
-    if not all([file_server, consortium_id, run_id, token]):
-        logger.warning(
-            "NeuroFLAME results upload skipped: missing env vars. Need "
-            "NEUROFLAME_FILESERVER_URL/CONSORTIUM_ID/RUN_ID and upload token."
-        )
-        return {"uploaded": False, "reason": "missing_env"}
+    # Normalize localhost inside container -> host.docker.internal
+    file_server = _normalize_fileserver_url(file_server)
+
+    if not os.path.exists(results_zip_path):
+        logger.error("NeuroFLAME results upload failed: results zip not found at %s", results_zip_path)
+        return {"uploaded": False, "reason": "zip_missing", "results_zip_path": results_zip_path}
 
     try:
-        import requests  # dependency is in requirements.txt
+        file_size = os.path.getsize(results_zip_path)
+    except Exception:
+        file_size = None
+
+    try:
+        import requests
     except Exception as e:
         logger.error("NeuroFLAME results upload failed: requests not available: %s", e)
         return {"uploaded": False, "reason": "requests_missing", "error": str(e)}
@@ -604,50 +654,50 @@ def upload_results_to_fileserver(results_zip_path: str, fl_ctx: Optional[FLConte
     url = f"{file_server.rstrip('/')}/upload_results/{consortium_id}/{run_id}"
     headers = {"x-access-token": token}
 
-    # Provide extra context for debugging without leaking token contents.
+    logger.info("Uploading results.zip to %s", url)
+
     if _truthy(debug):
         logger.info(
-            "NeuroFLAME results upload starting",
+            "NeuroFLAME results upload debug",
             extra={
                 "url": url,
                 "results_zip_path": results_zip_path,
-                "consortium_id": consortium_id,
-                "run_id": run_id,
-                "file_exists": os.path.exists(results_zip_path),
-                "file_size": os.path.getsize(results_zip_path) if os.path.exists(results_zip_path) else None,
+                "file_size": file_size,
+                "running_in_docker": _running_in_docker(),
             },
         )
 
-    if not os.path.exists(results_zip_path):
-        logger.error("NeuroFLAME results upload failed: results zip not found at %s", results_zip_path)
-        return {"uploaded": False, "reason": "zip_missing"}
+    if _truthy(preflight):
+        try:
+            health_url = f"{file_server.rstrip('/')}/health"
+            r = requests.get(health_url, timeout=5)
+            if _truthy(debug):
+                logger.info("fileServer preflight GET /health status=%s", r.status_code)
+        except Exception:
+            if _truthy(debug):
+                logger.info("fileServer preflight skipped/failed (non-fatal)", exc_info=True)
 
     try:
         with open(results_zip_path, "rb") as f:
             files = {"file": ("results.zip", f, "application/zip")}
             resp = requests.post(url, headers=headers, files=files, timeout=120)
 
-        ok = 200 <= resp.status_code < 300
-        if ok:
-            logger.info("NeuroFLAME results uploaded to fileServer successfully (status=%s)", resp.status_code)
-            return {"uploaded": True, "status": resp.status_code}
+        if 200 <= resp.status_code < 300:
+            logger.info("NeuroFLAME results uploaded successfully (status=%s, size=%s)", resp.status_code, file_size)
+            return {"uploaded": True, "status": resp.status_code, "url_used": url, "file_size": file_size}
 
-        # Failure: log response body for debugging (may contain JSON error).
-        body = None
         try:
-            body = resp.text[:2000]
+            body = (resp.text or "")[:2000]
         except Exception:
             body = "<unreadable>"
-        logger.error(
-            "NeuroFLAME results upload failed (status=%s): %s",
-            resp.status_code,
-            body,
-        )
-        return {"uploaded": False, "status": resp.status_code, "body": body}
+
+        logger.error("NeuroFLAME results upload failed (status=%s): %s", resp.status_code, body)
+        return {"uploaded": False, "status": resp.status_code, "url_used": url, "file_size": file_size, "body": body}
 
     except Exception as e:
         logger.exception("NeuroFLAME results upload exception: %s", e)
-        return {"uploaded": False, "reason": "exception", "error": str(e)}
+        return {"uploaded": False, "reason": "exception", "error": str(e), "url_used": url, "file_size": file_size}
+
 
 def perform_remote_step2_final_metric_aggregation(
     step2_results_by_site: Dict[str, Dict[str, Any]],
