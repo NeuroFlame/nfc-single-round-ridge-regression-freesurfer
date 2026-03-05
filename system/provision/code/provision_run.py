@@ -18,6 +18,7 @@ def provision_run(
     fed_learn_port: int,
     admin_port: int,
     host_identifier: str,
+    neuroflame_context: Dict[str, str] = None,
 ) -> None:
     admin_name = "admin@admin.com"
 
@@ -51,6 +52,7 @@ def provision_run(
         computation_parameters=computation_parameters,
         host_identifier=host_identifier,
         admin_name=admin_name,
+        neuroflame_context=neuroflame_context or {},
     )
 
 

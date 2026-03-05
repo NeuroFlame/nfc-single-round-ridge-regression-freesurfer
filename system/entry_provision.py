@@ -51,6 +51,20 @@ def main():
     admin_port = provision_input.get('admin_port')
     host_identifier = provision_input.get('host_identifier')
 
+    # Optional NeuroFLAME fileServer context (for results distribution)
+    # These are passed through to runKits/parameters.json so the NVFlare server can upload results.zip
+    neuroflame_context = {
+        "file_server_url": provision_input.get("fileServerUrl") or provision_input.get("fileserver_url") or provision_input.get("file_server_url"),
+        "consortium_id": provision_input.get("consortiumId") or provision_input.get("consortium_id"),
+        "run_id": provision_input.get("runId") or provision_input.get("run_id"),
+        "token": provision_input.get("downloadToken") or provision_input.get("uploadToken") or provision_input.get("token"),
+    }
+    # Drop empty values
+    neuroflame_context = {k: v for k, v in neuroflame_context.items() if v}
+    if neuroflame_context:
+        logger.info(f"neuroflame_context keys present: {list(neuroflame_context.keys())}")
+
+
     logger.info(f"user_ids: {user_ids}")
     logger.info(f"user_roles: {user_roles}")
     logger.info(f'computation_parameters: {computation_parameters}')
@@ -69,6 +83,8 @@ def main():
         fed_learn_port=fed_learn_port,
         admin_port=admin_port,
         host_identifier=host_identifier,
+        neuroflame_context=neuroflame_context,
+
     )
 
 if __name__ == '__main__':

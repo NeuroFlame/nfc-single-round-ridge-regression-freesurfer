@@ -1,6 +1,6 @@
 import os
 
-import simplejson as json
+import json
 
 
 class CacheSerialStore():

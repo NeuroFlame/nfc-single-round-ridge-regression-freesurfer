@@ -97,6 +97,7 @@ def create_run_kits(
     computation_parameters: str,
     host_identifier: str,
     admin_name: str,
+    neuroflame_context: Dict[str, str] = None,
 ) -> None:
     """
     Provision run artifacts for NeuroFLAME + NVFlare.
@@ -170,11 +171,11 @@ def create_run_kits(
     create_job(
         app_path=path_app,
         job_path=job_path,
-        min_clients=len(contributors),
+        min_clients=(len(contributors) + len(observers)),
         user_ids=[str(u) for u in user_ids],
         user_roles=normalized_roles,
         server_site_name="server",
-        observer_app_path=None,  # set if you maintain a distinct observer template app
+        observer_app_path=None,
     )
 
     # Server kit
@@ -204,7 +205,28 @@ def create_run_kits(
     _copy_directory(admin_startup_kit_path, os.path.join(central_node_path, "admin"))
 
     # Parameters
+    # computation_parameters is a JSON string passed from NeuroFLAME.
+    # We augment it with a `neuroflame` block so the NVFlare server can later upload results.zip to fileServer
+    # without needing extra env var injection.
+    params_obj: Dict[str, Any]
+    try:
+        params_obj = json.loads(computation_parameters) if computation_parameters else {}
+        if not isinstance(params_obj, dict):
+            params_obj = {"value": params_obj}
+    except Exception:
+        # fallback: keep original string under a key
+        params_obj = {"raw": computation_parameters}
+
+    nf_ctx = neuroflame_context or {}
+    if nf_ctx:
+        # Normalize keys
+        params_obj.setdefault("neuroflame", {})
+        if isinstance(params_obj["neuroflame"], dict):
+            params_obj["neuroflame"].update(nf_ctx)
+        else:
+            params_obj["neuroflame"] = dict(nf_ctx)
+
     with open(os.path.join(central_node_path, "parameters.json"), "w", encoding="utf-8") as f:
-        f.write(computation_parameters)
+        f.write(json.dumps(params_obj))
 
     logger.info("RunKits created successfully.")

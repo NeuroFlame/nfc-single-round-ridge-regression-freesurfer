@@ -38,6 +38,7 @@ def _normalize_roles(
 def generate_job_meta(
     contributors: List[str],
     observers: List[str],
+    min_clients: int,
     server_site_name: str = "server",
 ) -> Dict[str, Any]:
     """
@@ -51,7 +52,7 @@ def generate_job_meta(
 
     return {
         "resource_spec": {},
-        "min_clients": int(len(contributors)),  # MUST be contributors only
+        "min_clients": int(min_clients),
         "deploy_map": {
             "app_server": [server_site_name],
             "app_contrib": contributors,
@@ -131,10 +132,12 @@ def create_job(
     if min_clients < 0:
         raise ValueError("min_clients must be >= 0")
 
-    # Critical: min_clients counts ONLY contributors
-    if min_clients != len(contributors):
+    # Require observers to be present at run start so they receive app_observer
+    required = len(contributors) + len(observers)
+    if min_clients != required:
         raise ValueError(
-            f"min_clients ({min_clients}) must equal number of contributors ({len(contributors)})"
+            f"min_clients ({min_clients}) must equal contributors+observers ({required}) "
+            f"for observer-required runs."
         )
 
     os.makedirs(job_path, exist_ok=True)
@@ -173,5 +176,10 @@ def create_job(
         _apply_client_config(app_observer_path, "observer")
 
     # meta.json (one app per site)
-    meta = generate_job_meta(contributors, observers, server_site_name=server_site_name)
+    meta = generate_job_meta(
+        contributors,
+        observers,
+        min_clients=min_clients,
+        server_site_name=server_site_name,
+    )
     _write_json(os.path.join(job_path, "meta.json"), meta)

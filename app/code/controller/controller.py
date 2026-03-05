@@ -49,6 +49,25 @@ class SRRController(Controller):
         self._observers: Set[str] = set()
         self._all_sites: Optional[List[str]] = None
 
+    def _to_shareable(self, data):
+        """NVFlare Task.data must be a Shareable. Coerce dict-like results."""
+        from nvflare.apis.shareable import Shareable
+        if data is None:
+            return Shareable()
+        if isinstance(data, Shareable):
+            return data
+        if isinstance(data, dict):
+            s = Shareable()
+            s.update(data)
+            return s
+        # best-effort coercion for dict-like objects
+        try:
+            s = Shareable()
+            s.update(dict(data))
+            return s
+        except Exception as e:
+            raise TypeError(f"Expected Shareable or dict-like, got {type(data)}") from e
+
     # ----------------------------
     # NVFlare lifecycle hooks
     # ----------------------------
@@ -95,6 +114,7 @@ class SRRController(Controller):
         )
 
         aggregate_result = self.srr_aggregator.aggregate(fl_ctx)
+        aggregate_result = self._to_shareable(aggregate_result)
         fl_ctx.set_prop(key="CURRENT_ROUND", value=1)
 
         # STEP2: contributors only
@@ -108,12 +128,16 @@ class SRRController(Controller):
         )
 
         aggregate_result = self.srr_aggregator.aggregate(fl_ctx)
+        aggregate_result = self._to_shareable(aggregate_result)
         fl_ctx.set_prop(key="CURRENT_ROUND", value=2)
 
-        # STEP3: contributors + observers (e.g., persist global outputs locally)
+        # STEP3: notify participants that results are available via NeuroFLAME fileServer.
+        # No base64 shims - large artifacts should be downloaded from NeuroFLAME's /download_results endpoint.
+        results_data = Shareable()
+        results_data["results_zip_name"] = aggregate_result.get("results_zip_name", "results.zip")
         self._broadcast_task(
-            task_name=tc.TASK_NAME_LOCAL_CLIENT_STEP3,
-            data=aggregate_result,
+            task_name=tc.TASK_NAME_RECEIVE_RESULTS,
+            data=results_data,
             result_cb=None,
             fl_ctx=fl_ctx,
             abort_signal=abort_signal,

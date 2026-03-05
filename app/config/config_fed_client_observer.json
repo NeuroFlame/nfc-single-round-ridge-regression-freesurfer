@@ -2,9 +2,11 @@
   "format_version": 2,
   "executors": [
     {
-      "tasks": ["perform_local_client_step3"],
+      "tasks": [
+        "receive_results"
+      ],
       "executor": {
-        "path": "executor.executor.SRRExecutor",
+        "path": "executor.observer_executor.ObserverExecutor",
         "args": {}
       }
     }

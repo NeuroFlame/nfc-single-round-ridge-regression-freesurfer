@@ -1,7 +1,8 @@
-import dominate
+# app/code/executor/client_executor_methods.py
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+from typing import Any, Dict
 from utils.ancillary import GlobalOutputMetricLabels, OutputDictKeyLabels
 
 from . import client_constants
@@ -187,15 +188,16 @@ def _get_global_local_stats_df(agg_results):
     return result
 
 
-def _get_html_from_results(agg_results):
+
+def _get_html_from_results(agg_results) -> str:
+    """Returns HTML content to display for the aggregated results object."""
+    import dominate
     from dominate import tags
 
-    """
-        Returns html content to display for the results object.
-    """
-    doc = dominate.document(title='Results')
     global_stats_label = OutputDictKeyLabels.GLOBAL_STATS.value
     local_stats_label = OutputDictKeyLabels.LOCAL_STATS.value
+
+    doc = dominate.document(title='Results')
 
     # Add style
     with doc.head:
@@ -286,8 +288,7 @@ def _get_html_from_results(agg_results):
                         tags.td(GlobalOutputMetricLabels.R_SQUARE.value)
                         tags.td(global_rsquared, colspan=5)
                     with tags.tr():
-                        global_degfree = result[global_stats_label][
-                            GlobalOutputMetricLabels.DEGREES_OF_FREEDOM.value]
+                        global_degfree = result[global_stats_label][GlobalOutputMetricLabels.DEGREES_OF_FREEDOM.value]
                         tags.td(GlobalOutputMetricLabels.DEGREES_OF_FREEDOM.value)
                         tags.td(global_degfree, colspan=5)
                 for site in result[OutputDictKeyLabels.LOCAL_STATS.value]:
@@ -295,13 +296,11 @@ def _get_html_from_results(agg_results):
                         with tags.tr():
                             with tags.td(rowspan=6):
                                 tags.h3(site)
-                            global_labels = result[global_stats_label][
-                                GlobalOutputMetricLabels.COVARIATE_LABELS.value]
+                            global_labels = result[global_stats_label][GlobalOutputMetricLabels.COVARIATE_LABELS.value]
                             for j in global_labels:
                                 tags.td(j)
                         with tags.tr():
-                            local_coefficient = result[local_stats_label][site][
-                                GlobalOutputMetricLabels.COEFFICIENT.value]
+                            local_coefficient = result[local_stats_label][site][GlobalOutputMetricLabels.COEFFICIENT.value]
                             local_coefficient.insert(0, GlobalOutputMetricLabels.COEFFICIENT.value)
                             for i in local_coefficient:
                                 tags.td(i)
@@ -316,19 +315,15 @@ def _get_html_from_results(agg_results):
                             for i in local_pvalue:
                                 tags.td(i)
                         with tags.tr():
-                            local_errors = result[local_stats_label][site][
-                                GlobalOutputMetricLabels.SUM_OF_SQUARES_ERROR.value]
+                            local_errors = result[local_stats_label][site][GlobalOutputMetricLabels.SUM_OF_SQUARES_ERROR.value]
                             tags.td(GlobalOutputMetricLabels.SUM_OF_SQUARES_ERROR.value)
                             tags.td(local_errors, colspan=5)
                         with tags.tr():
-                            local_rsquared = result[local_stats_label][site][
-                                GlobalOutputMetricLabels.R_SQUARE.value]
+                            local_rsquared = result[local_stats_label][site][GlobalOutputMetricLabels.R_SQUARE.value]
                             tags.td(GlobalOutputMetricLabels.R_SQUARE.value)
                             tags.td(local_rsquared, colspan=5)
 
     return str(doc)
-
-
 def _get_SSE(y_actual, y_pred):
     """
     Computes Sum of Squared Errors (SSE)
