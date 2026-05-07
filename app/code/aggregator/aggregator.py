@@ -44,8 +44,11 @@ class SRRAggregator(Aggregator):
         :param fl_ctx: The federated learning context for this run.
         :return: Boolean indicating if the result was successfully accepted.
         """
-        site_name = site_result.get_peer_prop(
+        site_id = site_result.get_peer_prop(
             key=ReservedKey.IDENTITY_NAME, default=None)
+        computation_parameters = fl_ctx.get_prop(key="COMPUTATION_PARAMETERS", default={})
+        site_id_name_map = computation_parameters.get("site_id_name_map", {})
+        site_name = site_id_name_map.get(site_id, site_id)
         contribution_round = fl_ctx.get_prop(key="CURRENT_ROUND", default=None)
         if self.logger == None:
             self.logger = NFCLogger('aggregator.log', get_output_directory_path(fl_ctx),
@@ -77,6 +80,8 @@ class SRRAggregator(Aggregator):
         contribution_round = fl_ctx.get_prop(key="CURRENT_ROUND", default=None)
 
         if (contribution_round == 0):
+            computation_parameters = fl_ctx.get_prop(key="COMPUTATION_PARAMETERS", default={})
+            self.agg_cache["site_id_name_map"] = computation_parameters.get("site_id_name_map", {})
             agg_result = am.perform_remote_step1_compute_global_parameters(self.site_results[contribution_round],
                                                                            self.agg_cache)
             self.agg_cache = agg_result['cache']

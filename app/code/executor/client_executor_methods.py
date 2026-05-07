@@ -1,4 +1,5 @@
 import dominate
+from . import report_generator as rg
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -75,7 +76,10 @@ def perform_client_step1_validate_inputs_and_compute_local_model(covariates_path
     cache_dict = {
         "X": X.to_json(orient='split'),
         "y": y.to_json(orient='split'),
-        "lambda": lamb
+        "lambda": lamb,
+        "user_name": computation_parameters.get("user_name"),
+        "user_id":   computation_parameters.get("user_id"),
+        "computation_parameters": computation_parameters,
     }
 
     results = {'output': output, 'cache': cache_dict}
@@ -133,9 +137,17 @@ def perform_local_step3_persist_results(agg_results, logger, cache_dict):
        :param cache_dict: client cache dict
     """
     import copy
+    user_name = cache_dict.get('user_name')
+    user_id   = cache_dict.get('user_id')
+    computation_parameters = cache_dict.get('computation_parameters', {})
     results = {'output': {'json': copy.deepcopy(agg_results),
                           'csv': _get_global_local_stats_df(copy.deepcopy(agg_results)),
-                          'html': _get_html_from_results(copy.deepcopy(agg_results))
+                          'html': rg.generate_report_html(
+                              copy.deepcopy(agg_results),
+                              computation_parameters,
+                              user_name=user_name,
+                              user_id=user_id,
+                          )
                           },
                'cache': {}}
 

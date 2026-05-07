@@ -9,5 +9,8 @@
         "age":"float"
     },
     "Lambda": 1,
-    "IgnoreSubjectsWithMissingData" : true
+    "IgnoreSubjectsWithMissingData": true,
+    "StrictTypeChecking": false,
+    "user_name": "Dr. Jane Smith",
+    "user_id": "user-42"
 }
