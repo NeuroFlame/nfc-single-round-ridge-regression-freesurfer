@@ -25,6 +25,11 @@ def validate_and_get_inputs(covariates_path: str, data_path: str, computation_pa
         ignore_subjects_with_missing_entries = bool(strtobool(str(ignore_subjects_with_missing_entries)))
         logger.info(f' ignore_subjects_with_missing_entries = {ignore_subjects_with_missing_entries}')
 
+        strict_type_checking = computation_parameters.get("StrictTypeChecking",
+                                                          client_constants.DEFAULT_StrictTypeChecking)
+        strict_type_checking = bool(strtobool(str(strict_type_checking)))
+        logger.info(f' strict_type_checking = {strict_type_checking}')
+
         # Load the data
         covariates = pd.read_csv(covariates_path)
         data = pd.read_csv(data_path)
@@ -53,7 +58,7 @@ def validate_and_get_inputs(covariates_path: str, data_path: str, computation_pa
         logger.info(f'-- Checking covariate and dependent files : {str(covariates_path)}, {str(data_path)}')
 
         X, y = _convert_data_to_given_type(covariates, expected_covariates_info, data, expected_dependents_info,
-                                           logger, ignore_subjects_with_missing_entries)
+                                           logger, ignore_subjects_with_missing_entries, strict_type_checking)
         # dummy encoding categorical variables
         X = pd.get_dummies(X, drop_first=True)
 
@@ -68,11 +73,14 @@ def validate_and_get_inputs(covariates_path: str, data_path: str, computation_pa
 
 def _convert_data_to_given_type(covariates: pd.DataFrame, covariate_info: dict, data: pd.DataFrame,
                                 dependent_info: dict, logger: NFCLogger,
-                                ignore_subjects_with_missing_entries: bool):
+                                ignore_subjects_with_missing_entries: bool,
+                                strict_type_checking: bool = False):
     """
       Converts each dataframe column to its type specified in computation parameters. If
       ignore_subjects_with_missing_entries is true, then the subjects with missing data will be ignored, otherwise
-      it gives errors.
+      it gives errors. If strict_type_checking is true, columns are also rejected if the raw cell value
+      is not already the expected type (e.g. a boolean in a str column is flagged); otherwise only values
+      that cannot be coerced at all are rejected (lenient/legacy behavior).
     """
     column_info = dict(covariate_info)
     column_info.update(dependent_info)
@@ -86,7 +94,7 @@ def _convert_data_to_given_type(covariates: pd.DataFrame, covariate_info: dict, 
     combined_df = pd.concat([covariates, data], axis=1)
     combined_df = combined_df[list(expected_column_names)]
 
-    all_rows_to_ignore = _validate_data_datatypes(combined_df, column_info, logger)
+    all_rows_to_ignore = _validate_data_datatypes(combined_df, column_info, logger, strict_type_checking)
     if len(all_rows_to_ignore) > 0:
         if ignore_subjects_with_missing_entries:
             logger.info(f'-- Ignored following rows with incorrect column values: {str(_get_user_row_numbers(all_rows_to_ignore))}')
@@ -146,44 +154,84 @@ def _convert_data_to_given_type(covariates: pd.DataFrame, covariate_info: dict, 
     return covariates_X_df, data_y_df
 
 
-def _validate_data_datatypes(data_df: pd.DataFrame, column_info: dict, logger: NFCLogger) -> list:
+def _validate_data_datatypes(data_df: pd.DataFrame, column_info: dict, logger: NFCLogger,
+                             strict_type_checking: bool = False) -> list:
     """
-     Validates if each dataframe column is compatible to the type specified in computation parameters.
+     Validates if each dataframe column is compatible with the type specified in computation parameters.
+
+     Lenient mode (strict_type_checking=False, default): flags rows where the value cannot be coerced
+     to the target type at all (e.g. "banana" for a float column). This preserves legacy behavior.
+
+     Strict mode (strict_type_checking=True): additionally flags rows where the raw cell value is not
+     already the expected Python type — e.g. a boolean (True/False) in a str column, or a string in
+     an int column. Use this to catch type mismatches that would otherwise be silently coerced.
     """
     all_rows_to_ignore = set()
+
+    # Strict mode: map each expected type string to the Python types considered valid for that column.
+    # bool must be checked before int/float since bool is a subclass of int in Python.
+    _STRICT_ALLOWED_TYPES = {
+        "str":   (str,),
+        "int":   (int,),
+        "float": (float, int),   # int is acceptable in a float column
+        "bool":  (bool,),
+    }
+
     try:
         for column_name, column_datatype in column_info.items():
             logger.info(f'\nValidating column: {column_name} with requested datatype : {column_datatype}')
-            if column_datatype.strip().lower() == "int":
-                temp = pd.to_numeric(data_df[column_name], errors='coerce').astype('int')  # or .astype('Int64')
-            elif column_datatype.strip().lower() == "float":
-                temp = pd.to_numeric(data_df[column_name], errors='coerce').astype('float')
-            elif column_datatype.strip().lower() == "str":
-                temp = data_df[column_name].astype('object')
-            elif column_datatype.strip().lower() == "bool":
-                # Converting first to 'int' type to make sure all the possible values are converted correctly
-                temp = pd.to_numeric(data_df[column_name], errors='coerce').astype('Int64')  # or .astype('int')
-            else:
+            dtype_key = column_datatype.strip().lower()
+
+            if dtype_key not in ("int", "float", "str", "bool"):
                 err_msg = (f'Invalid datatype provided in the input for column : {column_name} and datatype: '
                            f'{column_datatype}. Allowed datatypes are int, float, str, bool.')
                 logger.error(err_msg)
                 raise Exception(err_msg)
 
-            # Check for null or NaNs in the data
-            rows_to_ignore = data_df[temp.isnull()].index.tolist()
+            rows_to_ignore = []
 
-            # Check for emtpy values in the data
-            if column_datatype.strip().lower() == "str":
-                rows_to_ignore = data_df[temp.str.strip() == ''].index
+            if strict_type_checking:
+                allowed_types = _STRICT_ALLOWED_TYPES[dtype_key]
+
+                def _is_wrong_type(val):
+                    if val is None or (isinstance(val, float) and pd.isna(val)):
+                        return False  # defer to post-cast null check
+                    # For bool columns, only accept actual bools (not 0/1 ints)
+                    if dtype_key == "bool":
+                        return not isinstance(val, bool)
+                    # For int/float columns, reject bools even though bool is a subclass of int
+                    if dtype_key in ("int", "float"):
+                        return isinstance(val, bool) or not isinstance(val, allowed_types)
+                    return not isinstance(val, allowed_types)
+
+                mask = data_df[column_name].map(_is_wrong_type)
+                rows_to_ignore = data_df[mask].index.tolist()
+
+            else:
+                # Lenient mode: attempt coercion and flag rows that produce NaN
+                if dtype_key == "int":
+                    temp = pd.to_numeric(data_df[column_name], errors='coerce').astype('int')
+                elif dtype_key == "float":
+                    temp = pd.to_numeric(data_df[column_name], errors='coerce').astype('float')
+                elif dtype_key == "str":
+                    temp = data_df[column_name].astype('object')
+                elif dtype_key == "bool":
+                    # Converting first to 'int' type to make sure all the possible values are converted correctly
+                    temp = pd.to_numeric(data_df[column_name], errors='coerce').astype('Int64')
+
+                # Check for null or NaNs in the data
+                rows_to_ignore = data_df[temp.isnull()].index.tolist()
+
+                # Check for empty values in str columns
+                if dtype_key == "str":
+                    rows_to_ignore = data_df[temp.str.strip() == ''].index.tolist()
 
             all_rows_to_ignore = all_rows_to_ignore.union(rows_to_ignore)
 
             if len(rows_to_ignore) > 0:
                 logger.info(f'Rows with incorrect values for column {column_name} : {str(_get_user_row_numbers(rows_to_ignore))}')
-
             else:
-                logger.info(
-                    f'Data validation passed for column: {column_name} to the requested datatype : {column_datatype}')
+                logger.info(f'Data validation passed for column: {column_name} to the requested datatype : {column_datatype}')
 
     except Exception as e:
         error_message = f"An error occurred during validation: {str(e)}"

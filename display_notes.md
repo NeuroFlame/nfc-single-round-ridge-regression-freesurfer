@@ -16,7 +16,8 @@ This computation performs a ridge regression on datasets given in .csv format fr
      "age":"float"
  },
  "Lambda": 1,
- "IgnoreSubjectsWithInvalidData" : true
+ "IgnoreSubjectsWithMissingData": true,
+ "StrictTypeChecking": false
 }
 ```
 
@@ -28,6 +29,7 @@ This computation performs a ridge regression on datasets given in .csv format fr
 | `Covariates` | `dict` | Provide all the covariates that need to be considered for regression along with their type as shown in the example above | dict | - | ✅ true |
 | `Lambda` | `float` | This parameter is the penalty weight that is applied to all variables in the model during regression. If 0, perform simple linear regression, otherwise it does ridge regression. | any value between 0 and 1 | 0 | ❌ false |
 | `IgnoreSubjectsWithMissingData` | `boolean` | This parameter lets the computation owner to decide how to handle if the data has missing or empty values. | true or false | false | ❌ false |
+| `StrictTypeChecking` | `boolean` | When true, rejects rows where the raw cell value is not already the declared column type (e.g. a boolean in a float column). When false (default), only rejects values that cannot be coerced to the target type at all. | true or false | false | ❌ false |
 
 ### Input Description
 

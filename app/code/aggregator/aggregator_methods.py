@@ -66,8 +66,10 @@ def perform_remote_step1_compute_global_parameters(site_results, agg_cache_dict)
         }
 
     all_local_stats_dicts = []
-    for site in sorted(site_results.keys()):
-        results = site_results[site]
+    site_id_name_map = agg_cache_dict.get("site_id_name_map", {})
+    named_site_results = {site_id_name_map.get(k, k): v for k, v in site_results.items()}
+    for site in sorted(named_site_results.keys()):
+        results = named_site_results[site]
         local_stats = []
         for roi in roi_labels:
             curr_roi_site_results = results[roi]
@@ -90,7 +92,8 @@ def perform_remote_step1_compute_global_parameters(site_results, agg_cache_dict)
         "global_degrees_of_freedom": dof_global,
         "X_labels": covariates_headers,
         "y_labels": roi_labels,
-        "all_stats_local": all_local_stats_dicts
+        "all_stats_local": all_local_stats_dicts,
+        "site_id_name_map": site_id_name_map,
     })
 
     results = {'output': global_results, 'cache': agg_cache_dict}
@@ -134,6 +137,9 @@ def perform_remote_step2(site_results, agg_cache_dict):
     all_local_stats_dicts_old = agg_cache_dict["all_stats_local"]
     avg_beta_vector = agg_cache_dict["avg_coefficients"]
     dof_global = agg_cache_dict["global_degrees_of_freedom"]
+
+    site_id_name_map = agg_cache_dict.get("site_id_name_map", {})
+    site_results = {site_id_name_map.get(k, k): v for k, v in site_results.items()}
 
     SSE_global = sum(
         [np.array(site_results[site]["SSE_local"]) for site in site_results])

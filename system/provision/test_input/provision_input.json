@@ -1,5 +1,9 @@
 {
-    "user_ids": ["user1", "user2", "user3"],
+"users": [
+    {"id": "abc123", "name": "site_boston"},
+    {"id": "def456", "name": "site_chicago"},
+    {"id": "ghi789", "name": "site_denver"}
+  ],
     "computation_parameters": "{\"testKey\":\"testValue\"}",
     "fed_learn_port": 5000,
     "admin_port": 5001,

@@ -93,12 +93,14 @@ Both files must follow a consistent format, though the specific covariates and d
         "isControl":"bool",
         "age":"float"
     },
-    "Lambda": 1
+    "Lambda": 1,
+    "IgnoreSubjectsWithMissingData": false,
+    "StrictTypeChecking": false
    }
    ```
 
-- **Global Output files: global_regression_result.json, global_regression_result.html**
-- These files have both global and local output results.
+- **Global Output files: global_regression_result.json, global_regression_result.html, global_stats.csv, local_stats_{siteid}.csv**
+- The json and html files have both global and local output results. global_stats.csv contains only global results; local_stats_{siteid}.csv contains local results for each participating site.
  
 
 #### Output Description
