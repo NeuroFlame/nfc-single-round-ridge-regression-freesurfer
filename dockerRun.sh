@@ -1,4 +1,6 @@
-docker build -t nfc-single-round-ridge-regression-freesurfer -f Dockerfile-dev .
+PLATFORM="${PLATFORM:-linux/amd64}"
+
+docker build --platform "$PLATFORM" -t nfc-single-round-ridge-regression-freesurfer -f Dockerfile-dev .
 
 docker run --rm -it \
     --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
