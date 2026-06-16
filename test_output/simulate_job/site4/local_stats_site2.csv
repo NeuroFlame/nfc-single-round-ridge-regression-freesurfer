@@ -1,3 +1,0 @@
-ROI,Coefficient_const,Coefficient_isControl,Coefficient_age,Coefficient_sex_M,t Stat_const,t Stat_isControl,t Stat_age,t Stat_sex_M,P-value_const,P-value_isControl,P-value_age,P-value_sex_M,R Squared,Sum Square of Errors
-4th-Ventricle,-228.7908,-223.8552,170.1054,-61.2543,-0.264,-0.3757,9.788,-0.1029,0.793,0.7088,0.0,0.9185,0.7552,188890882.9236
-5th-Ventricle,-60.9723,-63.8476,160.6278,-11.8798,-0.0815,-0.1241,10.7039,-0.0231,0.9354,0.9018,0.0,0.9817,0.744,140839024.7093

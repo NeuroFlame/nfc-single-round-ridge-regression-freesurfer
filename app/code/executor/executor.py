@@ -98,11 +98,12 @@ class SRRExecutor(Executor):
         covariates_path = os.path.join(data_directory, "covariates.csv")
         data_path = os.path.join(data_directory, "data.csv")
         computation_parameters = fl_ctx.get_peer_context().get_prop("COMPUTATION_PARAMETERS")
+        participant_id = fl_ctx.get_prop(FLContextKey.CLIENT_NAME)
 
         # Perform ridge regression using the specified covariates and dependent variables
         result = cem.perform_client_step1_validate_inputs_and_compute_local_model(covariates_path, data_path,
                                                                                   computation_parameters, self.logger,
-                                                                                  cache_dict)
+                                                                                  cache_dict, participant_id)
 
         # Prepare the Shareable object to send the result to other components
         # outgoing_shareable = Shareable()

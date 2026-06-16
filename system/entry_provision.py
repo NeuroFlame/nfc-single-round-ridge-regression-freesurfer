@@ -44,9 +44,12 @@ def main():
     path_run = os.path.join('/provisioning')
 
     # Extract arguments from provision input
-    users = provision_input.get('users')  # list of {id, name}
-    user_ids = [u['id'] for u in users]
-    site_id_name_map = {u['id']: u['name'] for u in users}
+    active_participants = provision_input.get('active_participants')  # list of {participantId, displayName}
+    participant_ids = [participant['participantId'] for participant in active_participants]
+    site_id_name_map = {
+        participant['participantId']: participant['displayName']
+        for participant in active_participants
+    }
     computation_parameters_dict = json.loads(provision_input.get('computation_parameters'))
     computation_parameters_dict['site_id_name_map'] = site_id_name_map
     computation_parameters = json.dumps(computation_parameters_dict)
@@ -54,7 +57,7 @@ def main():
     admin_port = provision_input.get('admin_port')
     host_identifier = provision_input.get('host_identifier')
     
-    print(f'user_ids: {user_ids}')
+    print(f'participant_ids: {participant_ids}')
     print(f'path_run: {path_run}')
     print(f'computation_parameters: {computation_parameters}')
     print(f'fed_learn_port: {fed_learn_port}')
@@ -64,7 +67,7 @@ def main():
     
     # Call the provision_run function with the loaded arguments
     provision_run(
-        user_ids=user_ids,
+        participant_ids=participant_ids,
         path_run=path_run,
         path_app="/workspace/app",
         computation_parameters=computation_parameters,

@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 def create_run_kits(
     path_app: str,
-    user_ids: List[str],
+    participant_ids: List[str],
     startup_kits_path: str,
     output_directory: str,
     computation_parameters: str,
@@ -41,7 +41,7 @@ def create_run_kits(
         os.makedirs(central_node_path, exist_ok=True)
         logger.info(f'Created central node directory at {central_node_path}')
         job_path = os.path.join(central_node_path, 'job')
-        create_job(path_app, job_path, min_clients=len(user_ids))
+        create_job(path_app, job_path, min_clients=len(participant_ids))
 
         # Copy the server's startupKit to the central node runKit
         server_startup_kit_path = os.path.join(startup_kits_path, host_identifier)
