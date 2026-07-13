@@ -12,8 +12,8 @@ IMAGE_TAG="${REPOSITORY}:${COMPUTATION_HANDLE}-${COMMIT_HASH}"
 
 # Build the image using Dockerfile-prod
 echo "Building the image with Dockerfile-prod..."
-docker build -f Dockerfile-prod -t "${COMPUTATION_HANDLE}" .
-docker build -f Dockerfile-prod -t coinstacteam/nfc-single-round-ridge-regression-freesurfer .
+docker build --platform linux/amd64 -f Dockerfile-prod -t "${COMPUTATION_HANDLE}" .
+docker build --platform linux/amd64 -f Dockerfile-prod -t coinstacteam/nfc-single-round-ridge-regression-freesurfer .
 docker push coinstacteam/nfc-single-round-ridge-regression-freesurfer
 
 # Tag the image for Docker Hub
