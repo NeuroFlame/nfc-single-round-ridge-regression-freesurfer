@@ -10,7 +10,7 @@ from . import client_input_preprocessor as cip
 
 
 def perform_client_step1_validate_inputs_and_compute_local_model(covariates_path, data_path, computation_parameters,
-                                                                 logger, cache_dict):
+                                                                 logger, cache_dict, participant_id):
     """
         Reads input data and covariates from the mentioned paths, performs validation. Upon successful validation,
         computes local regression models and send these model parameters to the aggregator.
@@ -35,6 +35,8 @@ def perform_client_step1_validate_inputs_and_compute_local_model(covariates_path
     y = data
 
     lamb = computation_parameters.get("Lambda", client_constants.DEFAULT_LAMBDA)
+    site_id_name_map = computation_parameters.get("site_id_name_map", {})
+    participant_name = site_id_name_map.get(participant_id, participant_id)
 
     # Initialize results storage
     output = {}
@@ -77,8 +79,8 @@ def perform_client_step1_validate_inputs_and_compute_local_model(covariates_path
         "X": X.to_json(orient='split'),
         "y": y.to_json(orient='split'),
         "lambda": lamb,
-        "user_name": computation_parameters.get("user_name"),
-        "user_id":   computation_parameters.get("user_id"),
+        "user_name": participant_name,
+        "user_id": participant_id,
         "computation_parameters": computation_parameters,
     }
 
