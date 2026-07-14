@@ -221,7 +221,7 @@ def _build_coefficients_section(results, all_sites, solid_map, bg_map, txt_map):
     <table class="stat-table" style="min-width:600px">
       <thead>
         <tr>
-          <th style="text-align:left">Covariate</th>
+          <th style="text-align:left">Variable</th>
           <th>Global Coef</th><th>t</th><th>p-value</th>
           {site_hdrs}
         </tr>
@@ -251,7 +251,7 @@ def _build_pvalue_section(results, all_sites, solid_map, bg_map, txt_map):
         return f'<td style="font-family:monospace;{_p_style(p)}">{val}</td>'
 
     html = '<div class="stat-card-scroll"><table class="stat-table" style="min-width:500px"><thead><tr>'
-    html += '<th style="text-align:left">Covariate</th>'
+    html += '<th style="text-align:left">Variable</th>'
     for result in results:
         html += f'<th>{result["ROI"]}</th>'
     html += '</tr></thead><tbody>'
@@ -276,7 +276,7 @@ def _build_pvalue_section(results, all_sites, solid_map, bg_map, txt_map):
     for site in all_sites:
         site_tabs += f'<div style="margin-top:1.2rem"><div style="font-size:.8rem;font-weight:700;margin-bottom:.5rem">{_pill(site, solid, bg, txt)}</div>'
         site_tabs += '<div class="stat-card-scroll"><table class="stat-table" style="min-width:400px"><thead><tr>'
-        site_tabs += '<th style="text-align:left">Covariate</th>'
+        site_tabs += '<th style="text-align:left">Variable</th>'
         for result in results:
             site_tabs += f'<th>{result["ROI"]}</th>'
         site_tabs += '</tr></thead><tbody>'
