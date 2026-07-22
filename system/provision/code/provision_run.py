@@ -10,7 +10,7 @@ from typing import List
 logger = logging.getLogger(__name__)
 
 def provision_run(
-    participant_ids: List[str],
+    user_ids: List[str],
     path_run: str,
     path_app: str,
     computation_parameters: str,
@@ -36,7 +36,7 @@ def provision_run(
         fed_learn_port=fed_learn_port,
         admin_port=admin_port,
         output_file_path=os.path.join(path_run, 'Project.yml'),
-        site_names=participant_ids,
+        site_names=user_ids,
     )
 
     create_startup_kits(
@@ -46,7 +46,7 @@ def provision_run(
 
     create_run_kits(
         path_app=path_app,
-        participant_ids=participant_ids,
+        user_ids=user_ids,
         startup_kits_path=os.path.join(path_startup_kits, 'project', 'prod_00'),
         output_directory=path_run_kits,
         computation_parameters=computation_parameters,
@@ -63,4 +63,4 @@ def ensure_directory_exists(directory_path: str) -> None:
         raise
 
 # Example usage:
-# provision_run(['participant1', 'participant2'], '/path/to/run', '{"param": "value"}', 8000, 9000, 'example.com')
+# provision_run(['user1', 'user2'], '/path/to/run', '{"param": "value"}', 8000, 9000, 'example.com')

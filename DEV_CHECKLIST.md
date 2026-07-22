@@ -5,6 +5,12 @@ To gain approval from the development team, ensure the computation module meets 
 ## **Successful Execution**  
 - [x] The module runs successfully with **three or more sites** on the public platform using the provided test data.
   - Successful run with 4 sites 2025-03-25
+- [x] The refactored workflow runs through `run_local_simulation.sh` using generated task configuration.
+
+## **Author/Framework Boundary**
+- [x] Computation-specific code is contained in `app/code/computation/`.
+- [x] `app/code/framework/` and `app/code/runtime/` match the boilerplate versions used by this branch, excluding ignored bytecode caches.
+- [x] No legacy computation-specific `controller/`, `executor/`, `aggregator/`, or catch-all `utils/` tree is live.
 
 ## **Computation Description Document**  
 Provide a clear and comprehensive document covering the following:  

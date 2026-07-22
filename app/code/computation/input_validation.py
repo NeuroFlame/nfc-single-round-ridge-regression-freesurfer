@@ -1,58 +1,14 @@
 from distutils.util import strtobool
+from logging import Logger
 from typing import Dict, Any
 
 import pandas as pd
-from utils.logger import NFCLogger
 
-from . import client_constants
-
-
-def _normalize_column_name(column_name: str) -> str:
-    return column_name.strip().lower()
-
-
-def _build_normalized_column_map(columns, file_label: str, logger: NFCLogger) -> Dict[str, str]:
-    normalized_column_map = {}
-
-    for column in columns:
-        normalized_column = _normalize_column_name(str(column))
-        if normalized_column in normalized_column_map:
-            error_message = (f"{file_label} contains duplicate headers after normalization: "
-                             f"'{normalized_column_map[normalized_column]}' and '{column}'.")
-            logger.info(error_message)
-            raise ValueError(error_message)
-
-        normalized_column_map[normalized_column] = column
-
-    return normalized_column_map
-
-
-def _select_columns_case_insensitive(dataframe: pd.DataFrame, expected_columns: list, file_label: str,
-                                     logger: NFCLogger) -> pd.DataFrame:
-    normalized_column_map = _build_normalized_column_map(dataframe.columns, file_label, logger)
-    missing_columns = [
-        column for column in expected_columns
-        if _normalize_column_name(column) not in normalized_column_map
-    ]
-
-    if missing_columns:
-        error_message = (f"{file_label} headers do not contain all expected headers. Expected at least "
-                         f"{expected_columns}, but got {set(dataframe.columns)}.")
-        logger.info(error_message)
-        raise ValueError(error_message)
-
-    actual_columns = [
-        normalized_column_map[_normalize_column_name(column)]
-        for column in expected_columns
-    ]
-    selected_dataframe = dataframe[actual_columns].copy()
-    selected_dataframe.columns = expected_columns
-
-    return selected_dataframe
+from . import constants
 
 
 def validate_and_get_inputs(covariates_path: str, data_path: str, computation_parameters: Dict[str, Any],
-                            logger: NFCLogger) -> bool:
+                            logger: Logger) -> bool:
     """
        Performs validation on the covariates and data files against provided computation parameters
     """
@@ -65,12 +21,14 @@ def validate_and_get_inputs(covariates_path: str, data_path: str, computation_pa
         expected_dependents = list(expected_dependents_info.keys())
 
         ignore_subjects_with_missing_entries = computation_parameters.get("IgnoreSubjectsWithMissingData",
-                                                                          client_constants.DEFAULT_IgnoreSubjectsWithMissingData)
+                                                                          constants.DEFAULT_IgnoreSubjectsWithMissingData)
         ignore_subjects_with_missing_entries = bool(strtobool(str(ignore_subjects_with_missing_entries)))
         logger.info(f' ignore_subjects_with_missing_entries = {ignore_subjects_with_missing_entries}')
 
-        strict_type_checking = computation_parameters.get("StrictTypeChecking",
-                                                          client_constants.DEFAULT_StrictTypeChecking)
+        strict_type_checking = computation_parameters.get(
+            "StrictTypeChecking",
+            constants.DEFAULT_StrictTypeChecking,
+        )
         strict_type_checking = bool(strtobool(str(strict_type_checking)))
         logger.info(f' strict_type_checking = {strict_type_checking}')
 
@@ -78,8 +36,26 @@ def validate_and_get_inputs(covariates_path: str, data_path: str, computation_pa
         covariates = pd.read_csv(covariates_path)
         data = pd.read_csv(data_path)
 
-        covariates = _select_columns_case_insensitive(covariates, expected_covariates, "Covariates", logger)
-        data = _select_columns_case_insensitive(data, expected_dependents, "Data", logger)
+        # Validate covariates headers
+        covariates_headers = set(covariates.columns)
+        if not set(expected_covariates).issubset(covariates_headers):
+            error_message = (f"Covariates headers do not contain all expected headers. Expected at least "
+                             f"{expected_covariates}, but got {covariates_headers}.")
+            logger.info(error_message)
+            return False, None, None
+
+
+        # Validate data headers
+        data_headers = set(data.columns)
+        if not set(expected_dependents).issubset(data_headers):
+            error_message = (f"Data headers do not contain all expected headers. Expected at least "
+                             f"{expected_dependents}, but got {data_headers}.")
+            logger.info(error_message)
+            return False, None, None
+
+
+        covariates = covariates[expected_covariates]
+        data = data[expected_dependents]
 
         logger.info(f'-- Checking covariate and dependent files : {str(covariates_path)}, {str(data_path)}')
 
@@ -98,7 +74,7 @@ def validate_and_get_inputs(covariates_path: str, data_path: str, computation_pa
 
 
 def _convert_data_to_given_type(covariates: pd.DataFrame, covariate_info: dict, data: pd.DataFrame,
-                                dependent_info: dict, logger: NFCLogger,
+                                dependent_info: dict, logger: Logger,
                                 ignore_subjects_with_missing_entries: bool,
                                 strict_type_checking: bool = False):
     """
@@ -180,7 +156,7 @@ def _convert_data_to_given_type(covariates: pd.DataFrame, covariate_info: dict, 
     return covariates_X_df, data_y_df
 
 
-def _validate_data_datatypes(data_df: pd.DataFrame, column_info: dict, logger: NFCLogger,
+def _validate_data_datatypes(data_df: pd.DataFrame, column_info: dict, logger: Logger,
                              strict_type_checking: bool = False) -> list:
     """
      Validates if each dataframe column is compatible with the type specified in computation parameters.

@@ -18,11 +18,25 @@ import argparse
 import os
 import shutil
 import json
+import sys
 
 JOB_FOLDER = 'job'
 SERVER_FOLDER = 'server'
 SERVER_CONFIG_SRC = 'app/config/config_fed_server.json'
 CLIENT_CONFIG_SRC = 'app/config/config_fed_client.json'
+
+
+def get_spec_task_names():
+    code_path = os.path.abspath("app/code")
+    sys.path.insert(0, code_path)
+    try:
+        from computation.spec import SPEC
+        from framework.workflow import get_task_names
+    finally:
+        if sys.path and sys.path[0] == code_path:
+            sys.path.pop(0)
+
+    return get_task_names(SPEC.workflow)
 
 def parse_sites_arg(sites_arg):
     if ' ' in sites_arg:
@@ -54,12 +68,24 @@ def update_min_clients_in_workflow(config_path, n_sites):
         json.dump(config, f, indent=2)
         f.truncate()
 
-def create_client_folders(job_folder, sites):
+def update_tasks_in_client_config(config_path, task_names):
+    with open(config_path, 'r+') as f:
+        config = json.load(f)
+        if 'executors' in config and len(config['executors']) > 0:
+            config['executors'][0]['tasks'] = task_names
+        f.seek(0)
+        json.dump(config, f, indent=2)
+        f.truncate()
+
+
+def create_client_folders(job_folder, sites, task_names):
     for site in sites:
         client_app_folder = os.path.join(job_folder, site)
         config_dir = os.path.join(client_app_folder, 'config')
         os.makedirs(config_dir)
-        shutil.copy(CLIENT_CONFIG_SRC, os.path.join(config_dir, 'config_fed_client.json'))
+        config_path = os.path.join(config_dir, 'config_fed_client.json')
+        shutil.copy(CLIENT_CONFIG_SRC, config_path)
+        update_tasks_in_client_config(config_path, task_names)
 
 def create_meta_json(job_folder, job_name, sites):
     meta = {
@@ -81,12 +107,13 @@ def main():
     sites = parse_sites_arg(args.sites)
     n_sites = len(sites)
     job_name = JOB_FOLDER
+    task_names = get_spec_task_names()
 
 
     create_job_folder(JOB_FOLDER)
     server_config_path = create_server_folder(JOB_FOLDER)
     update_min_clients_in_workflow(server_config_path, n_sites)
-    create_client_folders(JOB_FOLDER, sites)
+    create_client_folders(JOB_FOLDER, sites, task_names)
     create_meta_json(JOB_FOLDER, job_name, sites)
 
     print(f"Job folder '{JOB_FOLDER}' created with {n_sites} client(s) and meta.json.")

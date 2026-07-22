@@ -1,8 +1,11 @@
 import argparse
+import os
 import sys
 from sys import platform
 
 from nvflare.private.fed.app.simulator.simulator_runner import SimulatorRunner
+
+from framework.errors import raise_for_terminal_errors
 
 
 def define_simulator_parser(simulator_parser):
@@ -26,20 +29,22 @@ def run_simulator(simulator_args):
         max_clients=simulator_args.max_clients,
     )
     run_status = simulator.run()
+    result_root = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "test_output",
+        "simulate_job",
+    )
+    raise_for_terminal_errors(result_root)
 
     return run_status
 
 
 if __name__ == "__main__":
     """
-    This is the main program when running the NVFlare Simulator. Use the Flare simulator API,
-    create the SimulatorRunner object, do a setup(), then calls the run().
-    
-    1) Add the following as script input parameters : 
-        ./app -w ./ -n 2 -c site1,site2
-    2) ADD the following env variable where XXX is the full path to your workspace dir
-        PYTHONPATH=XXX/app/code  
-    
+    Run the generated job with the NVFlare SimulatorRunner API.
+
+    Example arguments:
+        ./job -w ./simulator_workspace -n 2 -c site1,site2
     """
 
     if sys.version_info < (3, 7):

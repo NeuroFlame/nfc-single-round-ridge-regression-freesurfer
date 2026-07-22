@@ -3,6 +3,7 @@ report_generator.py
 Generates a styled HTML report for the Ridge Regression federated computation,
 matching the visual style of the CSV Analyzer report.
 """
+from html import escape
 from typing import List, Dict, Any
 
 
@@ -24,12 +25,16 @@ def _site_maps(all_sites):
     return solid, pill_bg, pill_txt
 
 
+def _h(value) -> str:
+    return escape(str(value), quote=True)
+
+
 def _pill(site, solid_map, bg_map, txt_map):
     return (f'<span style="display:inline-flex;align-items:center;gap:.35rem;'
             f'background:{bg_map[site]};color:{txt_map[site]};border:1px solid {solid_map[site]};'
             f'border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600">'
             f'<span style="width:8px;height:8px;border-radius:50%;background:{solid_map[site]};'
-            f'flex-shrink:0"></span>{site}</span>')
+            f'flex-shrink:0"></span>{_h(site)}</span>')
 
 
 def _p_style(p):
@@ -83,13 +88,13 @@ def _build_header(rois, all_sites, covariates, params, solid_map, bg_map, txt_ma
 
     legend = "".join(
         f'<div style="display:flex;align-items:center;gap:.45rem;font-size:.83rem;color:var(--legend-color)">'
-        f'<div style="width:11px;height:11px;border-radius:3px;background:{solid_map[s]}"></div>{s}</div>'
+        f'<div style="width:11px;height:11px;border-radius:3px;background:{solid_map[s]}"></div>{_h(s)}</div>'
         for s in all_sites
     )
 
     roi_pills = "".join(
         f'<span style="background:var(--chip-bg);border:1px solid var(--border);border-radius:999px;'
-        f'padding:.2rem .65rem;font-size:.76rem;color:var(--chip-color)">{r}</span>'
+        f'padding:.2rem .65rem;font-size:.76rem;color:var(--chip-color)">{_h(r)}</span>'
         for r in rois
     )
 
@@ -100,7 +105,7 @@ def _build_header(rois, all_sites, covariates, params, solid_map, bg_map, txt_ma
     <div class="chip">Sites <b>{n_sites}</b></div>
     <div class="chip">Outcomes (ROIs) <b>{n_rois}</b></div>
     <div class="chip">Covariates <b>{n_cov}</b></div>
-    <div class="chip">λ (Ridge) <b>{lam}</b></div>
+    <div class="chip">λ (Ridge) <b>{_h(lam)}</b></div>
   </div>
   <div style="margin-top:.9rem;display:flex;flex-wrap:wrap;gap:.4rem">{roi_pills}</div>
   <div class="site-legend" style="margin-top:.75rem">{legend}</div>
@@ -142,7 +147,7 @@ def _build_summary_section(results, all_sites, solid_map, bg_map, txt_map):
 
         cards += f'''<div class="stat-card">
   <div class="stat-card-header">
-    <div class="stat-card-title">{roi}</div>
+    <div class="stat-card-title">{_h(roi)}</div>
     <span class="badge {'badge-green' if isinstance(r2g,float) and r2g>=0.5 else 'badge-yellow' if isinstance(r2g,float) and r2g>=0.2 else 'badge-red'}">
       R²&nbsp;{'%.4f'%r2g if isinstance(r2g,float) else '—'}
     </span>
@@ -155,11 +160,11 @@ def _build_summary_section(results, all_sites, solid_map, bg_map, txt_map):
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.75rem">
       <div style="background:var(--bg3);border-radius:8px;padding:.6rem .8rem">
         <div style="font-size:.7rem;color:var(--text3)">Degrees of Freedom</div>
-        <div style="font-family:monospace;font-size:.9rem;color:var(--td-mono);font-weight:600">{dof}</div>
+        <div style="font-family:monospace;font-size:.9rem;color:var(--td-mono);font-weight:600">{_h(dof)}</div>
       </div>
       <div style="background:var(--bg3);border-radius:8px;padding:.6rem .8rem">
         <div style="font-size:.7rem;color:var(--text3)">Global SSE</div>
-        <div style="font-family:monospace;font-size:.9rem;color:var(--td-mono);font-weight:600">{'%.2f'%sse if isinstance(sse,float) else sse}</div>
+        <div style="font-family:monospace;font-size:.9rem;color:var(--td-mono);font-weight:600">{'%.2f'%sse if isinstance(sse,float) else _h(sse)}</div>
       </div>
     </div>
   </div>
@@ -201,7 +206,7 @@ def _build_coefficients_section(results, all_sites, solid_map, bg_map, txt_map):
                 )
 
             rows += f'''<tr>
-  <td style="font-weight:600;color:var(--text2);white-space:nowrap">{cov}</td>
+  <td style="font-weight:600;color:var(--text2);white-space:nowrap">{_h(cov)}</td>
   <td style="font-family:monospace;font-size:.82rem;color:var(--td-mono);font-weight:700">
     {'%.4f'%g_coef if isinstance(g_coef,float) else '—'}
   </td>
@@ -214,7 +219,7 @@ def _build_coefficients_section(results, all_sites, solid_map, bg_map, txt_map):
 
         html += f'''<div class="hist-section" style="margin-bottom:1.5rem">
   <div class="hist-header">
-    <div class="hist-title">{roi}</div>
+    <div class="hist-title">{_h(roi)}</div>
     <span style="font-size:.8rem;color:var(--text3)">Global coef · t-stat · p-value, then per-site coef · t-stat</span>
   </div>
   <div class="stat-card-scroll">
@@ -253,12 +258,12 @@ def _build_pvalue_section(results, all_sites, solid_map, bg_map, txt_map):
     html = '<div class="stat-card-scroll"><table class="stat-table" style="min-width:500px"><thead><tr>'
     html += '<th style="text-align:left">Variable</th>'
     for result in results:
-        html += f'<th>{result["ROI"]}</th>'
+        html += f'<th>{_h(result["ROI"])}</th>'
     html += '</tr></thead><tbody>'
 
     cov_labels = results[0]["global_stats"]["covariate_labels"] if results else []
     for i, cov in enumerate(cov_labels):
-        html += f'<tr><td style="font-weight:600;color:var(--text2)">{cov}</td>'
+        html += f'<tr><td style="font-weight:600;color:var(--text2)">{_h(cov)}</td>'
         for result in results:
             p = result["global_stats"]["P-value"][i] if i < len(result["global_stats"]["P-value"]) else None
             html += _p_cell(p)
@@ -278,10 +283,10 @@ def _build_pvalue_section(results, all_sites, solid_map, bg_map, txt_map):
         site_tabs += '<div class="stat-card-scroll"><table class="stat-table" style="min-width:400px"><thead><tr>'
         site_tabs += '<th style="text-align:left">Variable</th>'
         for result in results:
-            site_tabs += f'<th>{result["ROI"]}</th>'
+            site_tabs += f'<th>{_h(result["ROI"])}</th>'
         site_tabs += '</tr></thead><tbody>'
         for i, cov in enumerate(cov_labels):
-            site_tabs += f'<tr><td style="font-weight:600;color:var(--text2)">{cov}</td>'
+            site_tabs += f'<tr><td style="font-weight:600;color:var(--text2)">{_h(cov)}</td>'
             for result in results:
                 p = result["local_stats"].get(site, {}).get("P-value", [])[i] \
                     if i < len(result["local_stats"].get(site, {}).get("P-value", [])) else None
@@ -305,7 +310,7 @@ def _section(title, content, slug=None):
     if slug is None:
         slug = title.lower().replace(" ", "-").replace("(","").replace(")","").replace("&","").replace("/","")
     return (f'<div class="container"><div class="section" id="sec-{slug}">'
-            f'<div class="section-title">{title}</div>{content}</div></div>')
+            f'<div class="section-title">{_h(title)}</div>{content}</div></div>')
 
 
 def _wrap_page(body: str, nav_titles: list = None) -> str:
@@ -316,7 +321,7 @@ def _wrap_page(body: str, nav_titles: list = None) -> str:
         return re.sub(r'-+', '-', s.replace(" ","-")).strip("-")
     nav_items_html = "\n".join(
         '<button class="nav-item" data-sec="sec-' + _slug(t) + '" '
-        'onclick="document.getElementById(\'sec-' + _slug(t) + '\').scrollIntoView({behavior:\'smooth\',block:\'start\'})">' + t + '</button>'
+        'onclick="document.getElementById(\'sec-' + _slug(t) + '\').scrollIntoView({behavior:\'smooth\',block:\'start\'})">' + _h(t) + '</button>'
         for t in nav_titles
     )
     sidebar_and_body = (
