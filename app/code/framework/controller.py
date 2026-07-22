@@ -1,11 +1,14 @@
 from typing import Callable
 
+from nvflare.apis.controller_spec import TaskCompletionStatus
+from nvflare.apis.fl_constant import ReturnCode
 from nvflare.apis.impl.controller import Controller, Task, ClientTask
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.signal import Signal
 from nvflare.apis.shareable import Shareable
 
-from .shared import load_computation_parameters
+from .errors import clear_terminal_error, record_terminal_error
+from .shared import load_computation_parameters, resolve_output_directory
 from .types import (
     ITERATION_INDEX_KEY,
     ITERATION_STOP_KEY,
@@ -35,23 +38,37 @@ class ComputationController(Controller):
         self._wait_time_after_min_received = wait_time_after_min_received
 
     def start_controller(self, fl_ctx: FLContext) -> None:
-        self.aggregator = self._engine.get_component(_AGGREGATOR_COMPONENT_ID)
-        fl_ctx.set_prop(
-            key="COMPUTATION_PARAMETERS",
-            value=load_computation_parameters(fl_ctx),
-            private=False,
-            sticky=True,
-        )
+        output_dir = resolve_output_directory(fl_ctx)
+        try:
+            clear_terminal_error(output_dir)
+            self.aggregator = self._engine.get_component(_AGGREGATOR_COMPONENT_ID)
+            fl_ctx.set_prop(
+                key="COMPUTATION_PARAMETERS",
+                value=load_computation_parameters(fl_ctx),
+                private=False,
+                sticky=True,
+            )
+        except Exception as error:
+            record_terminal_error(output_dir, "controller startup", error)
+            raise
 
     def control_flow(self, abort_signal: Signal, fl_ctx: FLContext) -> None:
-        workflow = self.SPEC.workflow
-        if isinstance(workflow, SteppedWorkflow):
-            self._run_stepped_workflow(workflow, abort_signal, fl_ctx)
-            return
-        if isinstance(workflow, IterativeWorkflow):
-            self._run_iterative_workflow(workflow, abort_signal, fl_ctx)
-            return
-        raise ValueError(f"Unsupported workflow type: {type(workflow)!r}")
+        try:
+            workflow = self.SPEC.workflow
+            if isinstance(workflow, SteppedWorkflow):
+                self._run_stepped_workflow(workflow, abort_signal, fl_ctx)
+                return
+            if isinstance(workflow, IterativeWorkflow):
+                self._run_iterative_workflow(workflow, abort_signal, fl_ctx)
+                return
+            raise ValueError(f"Unsupported workflow type: {type(workflow)!r}")
+        except Exception as error:
+            record_terminal_error(
+                resolve_output_directory(fl_ctx),
+                "controller",
+                error,
+            )
+            raise
 
     def _run_stepped_workflow(
         self,
@@ -68,7 +85,11 @@ class ComputationController(Controller):
             self._broadcast_task(
                 task_name=step_definition.name,
                 data=incoming_shareable,
-                result_cb=self._accept_site_result if expects_remote_result else None,
+                result_cb=(
+                    self._accept_site_result
+                    if expects_remote_result
+                    else self._validate_site_result
+                ),
                 fl_ctx=fl_ctx,
                 abort_signal=abort_signal,
             )
@@ -105,13 +126,28 @@ class ComputationController(Controller):
         self._broadcast_task(
             task_name=workflow.output_step.name,
             data=incoming_shareable,
-            result_cb=None,
+            result_cb=self._validate_site_result,
             fl_ctx=fl_ctx,
             abort_signal=abort_signal,
         )
 
     def _accept_site_result(self, client_task: ClientTask, fl_ctx: FLContext) -> bool:
-        return self.aggregator.accept(client_task.result, fl_ctx)
+        self._validate_site_result(client_task, fl_ctx)
+        if not self.aggregator.accept(client_task.result, fl_ctx):
+            raise RuntimeError(
+                f"Task '{client_task.task.name}' returned an invalid result from "
+                f"site '{client_task.client.name}'"
+            )
+        return True
+
+    def _validate_site_result(self, client_task: ClientTask, fl_ctx: FLContext) -> bool:
+        return_code = client_task.result.get_return_code()
+        if return_code != ReturnCode.OK:
+            raise RuntimeError(
+                f"Task '{client_task.task.name}' failed on site "
+                f"'{client_task.client.name}' with return code '{return_code}'"
+            )
+        return True
 
     def _broadcast_task(
         self,
@@ -121,19 +157,27 @@ class ComputationController(Controller):
         fl_ctx: FLContext,
         abort_signal: Signal,
     ) -> None:
+        task = Task(
+            name=task_name,
+            data=data,
+            props={},
+            timeout=self._task_timeout,
+            result_received_cb=result_cb,
+        )
         self.broadcast_and_wait(
-            task=Task(
-                name=task_name,
-                data=data,
-                props={},
-                timeout=self._task_timeout,
-                result_received_cb=result_cb,
-            ),
+            task=task,
             min_responses=self._min_clients,
             wait_time_after_min_received=self._wait_time_after_min_received,
             fl_ctx=fl_ctx,
             abort_signal=abort_signal,
         )
+        if task.completion_status != TaskCompletionStatus.OK:
+            task_exception = getattr(task, "exception", None)
+            detail = f": {task_exception}" if task_exception else ""
+            raise RuntimeError(
+                f"Task '{task_name}' ended with status "
+                f"'{task.completion_status}'{detail}"
+            )
 
     def process_result_of_unknown_task(self, task: Task, fl_ctx: FLContext) -> None:
         pass

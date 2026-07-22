@@ -6,6 +6,7 @@ from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable
 from nvflare.app_common.abstract.aggregator import Aggregator
 
+from .errors import record_terminal_error
 from .logger import close_computation_logger
 from .serialization import deserialize_value, serialize_value
 from .shared import build_runtime_context, load_computation_parameters, resolve_site_name
@@ -97,22 +98,35 @@ class ComputationAggregator(Aggregator):
                     stop_state,
                     runtime,
                 )
+
+            if step_result.remote_state is not None:
+                self.remote_state = step_result.remote_state
+
+            outgoing_shareable = Shareable()
+            outgoing_shareable["result"] = serialize_value(
+                step_result.payload,
+                self.SPEC.codecs,
+                max_inline_array_bytes=self.SPEC.max_inline_array_bytes,
+            )
+            if isinstance(workflow, IterativeWorkflow):
+                outgoing_shareable[ITERATION_STOP_KEY] = should_stop
+            return outgoing_shareable
+        except Exception as error:
+            record_terminal_error(
+                runtime.output_dir,
+                f"remote round {current_round}",
+                error,
+            )
+            if runtime.logger:
+                runtime.logger.critical(
+                    "Remote computation failed in round %s",
+                    current_round,
+                    exc_info=True,
+                )
+            raise
         finally:
             if runtime.logger:
                 close_computation_logger(runtime.logger)
-
-        if step_result.remote_state is not None:
-            self.remote_state = step_result.remote_state
-
-        outgoing_shareable = Shareable()
-        outgoing_shareable["result"] = serialize_value(
-            step_result.payload,
-            self.SPEC.codecs,
-            max_inline_array_bytes=self.SPEC.max_inline_array_bytes,
-        )
-        if isinstance(workflow, IterativeWorkflow):
-            outgoing_shareable[ITERATION_STOP_KEY] = should_stop
-        return outgoing_shareable
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
         if event_type == EventType.END_RUN:

@@ -132,6 +132,8 @@ N_SITES="${#SITES[@]}"
 echo "Selected sites: $SITES_CSV"
 echo "Result root: $RESULT_ROOT"
 
+rm -rf "$RESULT_ROOT"
+
 if [[ $BUILD_IMAGE -eq 1 ]]; then
     echo
     echo "Building Docker image '$IMAGE_NAME'..."
