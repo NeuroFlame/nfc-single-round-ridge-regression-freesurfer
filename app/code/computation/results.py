@@ -1,5 +1,6 @@
+"""Build ridge computation output files."""
+
 import copy
-import json
 
 import dominate
 import pandas as pd
@@ -11,6 +12,7 @@ from .types import FinalResults
 
 
 def build_output_payloads(final_results: FinalResults, parameters=None):
+    """Build JSON, CSV, and HTML output payloads from final results."""
     parameters = parameters or {}
     payload = final_results.rows
     stats_dataframes = _build_stats_dataframes(copy.deepcopy(payload))
@@ -32,14 +34,19 @@ def build_output_payloads(final_results: FinalResults, parameters=None):
 
 def _build_stats_dataframes(result_rows):
     def build_stats_dataframe(temp_df, roi_names):
-        covariate_labels = temp_df.pop(GlobalOutputMetricLabels.COVARIATE_LABELS.value)[0]
+        covariate_labels = temp_df.pop(GlobalOutputMetricLabels.COVARIATE_LABELS.value)[
+            0
+        ]
         column_names = temp_df.columns.tolist()
         list_value_indexes = []
         for index, value in enumerate(temp_df.loc[0]):
             if isinstance(value, list):
                 list_value_indexes.append(index)
 
-        new_df = pd.concat([temp_df[column_names[idx]].apply(pd.Series) for idx in list_value_indexes], axis=1)
+        new_df = pd.concat(
+            [temp_df[column_names[idx]].apply(pd.Series) for idx in list_value_indexes],
+            axis=1,
+        )
         new_df.columns = [
             column_names[column_idx] + "_" + covariate
             for column_idx in list_value_indexes
@@ -58,18 +65,29 @@ def _build_stats_dataframes(result_rows):
     roi_names = reverse_df[OutputDictKeyLabels.ROI.value].tolist()
 
     global_df = pd.json_normalize(reverse_df[OutputDictKeyLabels.GLOBAL_STATS.value])
-    result[OutputDictKeyLabels.GLOBAL_STATS.value] = build_stats_dataframe(global_df, roi_names)
+    result[OutputDictKeyLabels.GLOBAL_STATS.value] = build_stats_dataframe(
+        global_df, roi_names
+    )
 
     site_names = reverse_df[OutputDictKeyLabels.LOCAL_STATS.value][0].keys()
     for site in site_names:
-        local_df = pd.json_normalize(reverse_df[OutputDictKeyLabels.LOCAL_STATS.value][0][site])
+        local_df = pd.json_normalize(
+            reverse_df[OutputDictKeyLabels.LOCAL_STATS.value][0][site]
+        )
         for index in range(1, len(roi_names)):
             local_df = pd.concat(
-                [local_df, pd.json_normalize(reverse_df[OutputDictKeyLabels.LOCAL_STATS.value][index][site])],
+                [
+                    local_df,
+                    pd.json_normalize(
+                        reverse_df[OutputDictKeyLabels.LOCAL_STATS.value][index][site]
+                    ),
+                ],
                 ignore_index=True,
                 axis=0,
             )
-        result[f"{OutputDictKeyLabels.LOCAL_STATS.value}_{site}"] = build_stats_dataframe(local_df, roi_names)
+        result[f"{OutputDictKeyLabels.LOCAL_STATS.value}_{site}"] = (
+            build_stats_dataframe(local_df, roi_names)
+        )
 
     return result
 
@@ -81,7 +99,7 @@ def _build_html(result_rows):
 
     with doc.head:
         tags.style(
-            '''
+            """
             body {
                 font-family: sans-serif;
             }
@@ -131,7 +149,7 @@ def _build_html(result_rows):
                 font-weight: bold;
                 color: #009879;
             }
-        '''
+        """
         )
 
     with doc:
@@ -144,32 +162,49 @@ def _build_html(result_rows):
                     with tags.tr():
                         with tags.td(rowspan=6):
                             tags.h3("Globals")
-                        global_labels = result[global_stats_label][GlobalOutputMetricLabels.COVARIATE_LABELS.value]
+                        global_labels = result[global_stats_label][
+                            GlobalOutputMetricLabels.COVARIATE_LABELS.value
+                        ]
                         global_labels.insert(0, "")
                         for value in global_labels:
                             tags.td(value)
                     with tags.tr():
-                        global_coefficient = result[global_stats_label][GlobalOutputMetricLabels.COEFFICIENT.value]
-                        global_coefficient.insert(0, GlobalOutputMetricLabels.COEFFICIENT.value)
+                        global_coefficient = result[global_stats_label][
+                            GlobalOutputMetricLabels.COEFFICIENT.value
+                        ]
+                        global_coefficient.insert(
+                            0, GlobalOutputMetricLabels.COEFFICIENT.value
+                        )
                         for value in global_coefficient:
                             tags.td(value)
                     with tags.tr():
-                        global_tstat = result[global_stats_label][GlobalOutputMetricLabels.T_STAT.value]
+                        global_tstat = result[global_stats_label][
+                            GlobalOutputMetricLabels.T_STAT.value
+                        ]
                         global_tstat.insert(0, GlobalOutputMetricLabels.T_STAT.value)
                         for value in global_tstat:
                             tags.td(value)
                     with tags.tr():
-                        global_pvalue = result[global_stats_label][GlobalOutputMetricLabels.P_VALUE.value]
+                        global_pvalue = result[global_stats_label][
+                            GlobalOutputMetricLabels.P_VALUE.value
+                        ]
                         global_pvalue.insert(0, GlobalOutputMetricLabels.P_VALUE.value)
                         for value in global_pvalue:
                             tags.td(value)
                     with tags.tr():
                         tags.td(GlobalOutputMetricLabels.R_SQUARE.value)
-                        tags.td(result[global_stats_label][GlobalOutputMetricLabels.R_SQUARE.value], colspan=5)
+                        tags.td(
+                            result[global_stats_label][
+                                GlobalOutputMetricLabels.R_SQUARE.value
+                            ],
+                            colspan=5,
+                        )
                     with tags.tr():
                         tags.td(GlobalOutputMetricLabels.DEGREES_OF_FREEDOM.value)
                         tags.td(
-                            result[global_stats_label][GlobalOutputMetricLabels.DEGREES_OF_FREEDOM.value],
+                            result[global_stats_label][
+                                GlobalOutputMetricLabels.DEGREES_OF_FREEDOM.value
+                            ],
                             colspan=5,
                         )
                 for site in result[OutputDictKeyLabels.LOCAL_STATS.value]:
@@ -177,32 +212,51 @@ def _build_html(result_rows):
                         with tags.tr():
                             with tags.td(rowspan=6):
                                 tags.h3(site)
-                            global_labels = result[global_stats_label][GlobalOutputMetricLabels.COVARIATE_LABELS.value]
+                            global_labels = result[global_stats_label][
+                                GlobalOutputMetricLabels.COVARIATE_LABELS.value
+                            ]
                             for value in global_labels:
                                 tags.td(value)
                         with tags.tr():
-                            local_coefficient = result[local_stats_label][site][GlobalOutputMetricLabels.COEFFICIENT.value]
-                            local_coefficient.insert(0, GlobalOutputMetricLabels.COEFFICIENT.value)
+                            local_coefficient = result[local_stats_label][site][
+                                GlobalOutputMetricLabels.COEFFICIENT.value
+                            ]
+                            local_coefficient.insert(
+                                0, GlobalOutputMetricLabels.COEFFICIENT.value
+                            )
                             for value in local_coefficient:
                                 tags.td(value)
                         with tags.tr():
-                            local_tstat = result[local_stats_label][site][GlobalOutputMetricLabels.T_STAT.value]
+                            local_tstat = result[local_stats_label][site][
+                                GlobalOutputMetricLabels.T_STAT.value
+                            ]
                             local_tstat.insert(0, GlobalOutputMetricLabels.T_STAT.value)
                             for value in local_tstat:
                                 tags.td(value)
                         with tags.tr():
-                            local_pvalue = result[local_stats_label][site][GlobalOutputMetricLabels.P_VALUE.value]
-                            local_pvalue.insert(0, GlobalOutputMetricLabels.P_VALUE.value)
+                            local_pvalue = result[local_stats_label][site][
+                                GlobalOutputMetricLabels.P_VALUE.value
+                            ]
+                            local_pvalue.insert(
+                                0, GlobalOutputMetricLabels.P_VALUE.value
+                            )
                             for value in local_pvalue:
                                 tags.td(value)
                         with tags.tr():
                             tags.td(GlobalOutputMetricLabels.SUM_OF_SQUARES_ERROR.value)
                             tags.td(
-                                result[local_stats_label][site][GlobalOutputMetricLabels.SUM_OF_SQUARES_ERROR.value],
+                                result[local_stats_label][site][
+                                    GlobalOutputMetricLabels.SUM_OF_SQUARES_ERROR.value
+                                ],
                                 colspan=5,
                             )
                         with tags.tr():
                             tags.td(GlobalOutputMetricLabels.R_SQUARE.value)
-                            tags.td(result[local_stats_label][site][GlobalOutputMetricLabels.R_SQUARE.value], colspan=5)
+                            tags.td(
+                                result[local_stats_label][site][
+                                    GlobalOutputMetricLabels.R_SQUARE.value
+                                ],
+                                colspan=5,
+                            )
 
     return str(doc)

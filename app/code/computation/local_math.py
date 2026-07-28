@@ -1,13 +1,22 @@
+"""Local ridge regression fitting and metric calculations."""
+
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-
 from framework import with_state
 
-from .types import CachedLocalState, GlobalModelSummary, LocalMetricSummary, LocalModelSummary, LocalRoiStats, RidgeInputs
+from .types import (
+    CachedLocalState,
+    GlobalModelSummary,
+    LocalMetricSummary,
+    LocalModelSummary,
+    LocalRoiStats,
+    RidgeInputs,
+)
 
 
 def fit_local_models(inputs: RidgeInputs):
+    """Fit one local ridge model for each region of interest."""
     roi_stats = {}
 
     for column in inputs.roi_labels:
@@ -16,7 +25,9 @@ def fit_local_models(inputs: RidgeInputs):
         mean_y_local = np.mean(y_without_nans)
         num_subjects = len(y_without_nans)
 
-        model = _get_ridge_regression_model(X_without_nans, y_without_nans, inputs.lambda_value)
+        model = _get_ridge_regression_model(
+            X_without_nans, y_without_nans, inputs.lambda_value
+        )
         coefficients = model.params
         sse = _get_sse(y_without_nans, model.predict(X_without_nans))
 
@@ -44,7 +55,10 @@ def fit_local_models(inputs: RidgeInputs):
     )
 
 
-def compute_local_metrics(global_model: GlobalModelSummary, state: CachedLocalState) -> LocalMetricSummary:
+def compute_local_metrics(
+    global_model: GlobalModelSummary, state: CachedLocalState
+) -> LocalMetricSummary:
+    """Compute site metrics for the aggregated global model."""
     restored_inputs = RidgeInputs(
         X=state.X,
         y=state.y,
@@ -60,10 +74,16 @@ def compute_local_metrics(global_model: GlobalModelSummary, state: CachedLocalSt
         curr_y = restored_inputs.y[column]
 
         X_without_nans, y_without_nans = _ignore_nans(restored_inputs.X, curr_y)
-        estimated_y = np.dot(roi_global_model.global_coefficients, np.matrix.transpose(X_without_nans))
+        estimated_y = np.dot(
+            roi_global_model.global_coefficients, np.matrix.transpose(X_without_nans)
+        )
 
         sse_local.append(_get_sse(y_without_nans, estimated_y))
-        sst_local.append(np.sum(np.square(np.subtract(y_without_nans, roi_global_model.global_mean_y))))
+        sst_local.append(
+            np.sum(
+                np.square(np.subtract(y_without_nans, roi_global_model.global_mean_y))
+            )
+        )
         varx_matrix_local.append(np.dot(X_without_nans.T, X_without_nans).tolist())
 
     return LocalMetricSummary(
@@ -85,7 +105,9 @@ def _get_ridge_regression_model(X, y, lambda_value, use_regularization_fit=True)
         reg_fit = model.fit_regularized(alpha=lambda_value, L1_wt=0)
         pinv_wexog, _ = pinv_extended(model.wexog)
         normalized_cov_params = np.dot(pinv_wexog, np.transpose(pinv_wexog))
-        summary = sm.regression.linear_model.OLSResults(model, reg_fit.params, normalized_cov_params)
+        summary = sm.regression.linear_model.OLSResults(
+            model, reg_fit.params, normalized_cov_params
+        )
     else:
         summary = model.fit()
 

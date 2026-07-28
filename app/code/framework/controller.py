@@ -1,11 +1,13 @@
+"""Coordinate stepped and iterative computations through NVFlare tasks."""
+
 from typing import Callable
 
 from nvflare.apis.controller_spec import TaskCompletionStatus
 from nvflare.apis.fl_constant import ReturnCode
-from nvflare.apis.impl.controller import Controller, Task, ClientTask
 from nvflare.apis.fl_context import FLContext
-from nvflare.apis.signal import Signal
+from nvflare.apis.impl.controller import ClientTask, Controller, Task
 from nvflare.apis.shareable import Shareable
+from nvflare.apis.signal import Signal
 
 from .errors import clear_terminal_error, record_terminal_error
 from .shared import load_computation_parameters, resolve_output_directory
@@ -17,11 +19,12 @@ from .types import (
     SteppedWorkflow,
 )
 
-
 _AGGREGATOR_COMPONENT_ID = "aggregator"
 
 
 class ComputationController(Controller):
+    """Dispatch computation steps and route results through the aggregator."""
+
     SPEC: ComputationSpec = None
 
     def __init__(
@@ -30,6 +33,7 @@ class ComputationController(Controller):
         wait_time_after_min_received: int = 10,
         task_timeout: int = 0,
     ):
+        """Configure participant thresholds and task timing."""
         super().__init__()
         if self.SPEC is None:
             raise ValueError("Controller SPEC must be defined")
@@ -38,6 +42,7 @@ class ComputationController(Controller):
         self._wait_time_after_min_received = wait_time_after_min_received
 
     def start_controller(self, fl_ctx: FLContext) -> None:
+        """Load run parameters and resolve the configured aggregator."""
         output_dir = resolve_output_directory(fl_ctx)
         try:
             clear_terminal_error(output_dir)
@@ -53,6 +58,7 @@ class ComputationController(Controller):
             raise
 
     def control_flow(self, abort_signal: Signal, fl_ctx: FLContext) -> None:
+        """Execute the configured stepped or iterative workflow."""
         try:
             workflow = self.SPEC.workflow
             if isinstance(workflow, SteppedWorkflow):
@@ -180,9 +186,11 @@ class ComputationController(Controller):
             )
 
     def process_result_of_unknown_task(self, task: Task, fl_ctx: FLContext) -> None:
+        """Ignore results for tasks no longer owned by this controller."""
         pass
 
     def stop_controller(self, fl_ctx: FLContext) -> None:
+        """Finish controller shutdown without additional cleanup."""
         pass
 
 

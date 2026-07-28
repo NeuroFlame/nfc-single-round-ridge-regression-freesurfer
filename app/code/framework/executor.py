@@ -1,3 +1,5 @@
+"""Execute computation-defined functions at participating sites."""
+
 from nvflare.apis.event_type import EventType
 from nvflare.apis.executor import Executor
 from nvflare.apis.fl_context import FLContext
@@ -8,7 +10,11 @@ from .cache import JsonStateStore
 from .errors import clear_terminal_error, record_terminal_error
 from .logger import close_computation_logger
 from .serialization import deserialize_value, serialize_value
-from .shared import build_runtime_context, load_computation_parameters, resolve_output_directory
+from .shared import (
+    build_runtime_context,
+    load_computation_parameters,
+    resolve_output_directory,
+)
 from .types import (
     ITERATION_INDEX_KEY,
     ComputationSpec,
@@ -19,9 +25,12 @@ from .writers import write_standard_outputs
 
 
 class ComputationExecutor(Executor):
+    """Resolve and run the local function associated with an NVFlare task."""
+
     SPEC: ComputationSpec = None
 
     def __init__(self):
+        """Initialize the per-output-directory state-store registry."""
         super().__init__()
         self._state_stores = {}
 
@@ -32,6 +41,7 @@ class ComputationExecutor(Executor):
         fl_ctx: FLContext,
         abort_signal: Signal,
     ) -> Shareable:
+        """Execute one local or output step and return its transport payload."""
         output_dir = resolve_output_directory(fl_ctx)
         runtime = None
 
@@ -58,11 +68,7 @@ class ComputationExecutor(Executor):
 
             if isinstance(workflow, SteppedWorkflow):
                 step_definition = next(
-                    (
-                        step
-                        for step in workflow.steps
-                        if step.name == task_name
-                    ),
+                    (step for step in workflow.steps if step.name == task_name),
                     None,
                 )
                 if step_definition is None:
@@ -148,6 +154,7 @@ class ComputationExecutor(Executor):
                 close_computation_logger(runtime.logger)
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
+        """Remove all persistent site state when the run ends."""
         if event_type == EventType.END_RUN:
             for output_dir in tuple(self._state_stores):
                 self._remove_state(output_dir)

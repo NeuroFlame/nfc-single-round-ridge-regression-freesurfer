@@ -1,1 +1,1 @@
-
+"""Ridge regression computation implementation."""

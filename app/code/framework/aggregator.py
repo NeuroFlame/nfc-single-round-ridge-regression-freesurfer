@@ -1,4 +1,6 @@
-from typing import Dict, Any
+"""Run computation-defined aggregation on the NVFlare server."""
+
+from typing import Any, Dict
 
 from nvflare.apis.event_type import EventType
 from nvflare.apis.fl_constant import ReservedKey
@@ -9,7 +11,11 @@ from nvflare.app_common.abstract.aggregator import Aggregator
 from .errors import record_terminal_error
 from .logger import close_computation_logger
 from .serialization import deserialize_value, serialize_value
-from .shared import build_runtime_context, load_computation_parameters, resolve_site_name
+from .shared import (
+    build_runtime_context,
+    load_computation_parameters,
+    resolve_site_name,
+)
 from .types import (
     ITERATION_STOP_KEY,
     ComputationSpec,
@@ -19,9 +25,12 @@ from .types import (
 
 
 class ComputationAggregator(Aggregator):
+    """Collect site results and invoke the current remote computation step."""
+
     SPEC: ComputationSpec = None
 
     def __init__(self):
+        """Initialize aggregation state for the configured computation."""
         super().__init__()
         if self.SPEC is None:
             raise ValueError("Aggregator SPEC must be defined")
@@ -29,6 +38,7 @@ class ComputationAggregator(Aggregator):
         self.remote_state: Any = None
 
     def accept(self, site_result: Shareable, fl_ctx: FLContext) -> bool:
+        """Store one named site's result for the current workflow round."""
         site_id = site_result.get_peer_prop(key=ReservedKey.IDENTITY_NAME, default=None)
         current_round = fl_ctx.get_prop(key="CURRENT_ROUND", default=None)
 
@@ -42,6 +52,7 @@ class ComputationAggregator(Aggregator):
         return True
 
     def aggregate(self, fl_ctx: FLContext) -> Shareable:
+        """Aggregate current-round site results into the next site payload."""
         current_round = fl_ctx.get_prop(key="CURRENT_ROUND", default=None)
         if current_round is None:
             return Shareable()
@@ -77,7 +88,9 @@ class ComputationAggregator(Aggregator):
                     self.SPEC.codecs,
                     max_inline_array_bytes=self.SPEC.max_inline_array_bytes,
                 )
-                for site_name, site_payload in self.site_results.get(current_round, {}).items()
+                for site_name, site_payload in self.site_results.get(
+                    current_round, {}
+                ).items()
             }
             step_result = remote_fn(
                 site_results,
@@ -129,6 +142,7 @@ class ComputationAggregator(Aggregator):
                 close_computation_logger(runtime.logger)
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
+        """Clear persistent server state when the run ends."""
         if event_type == EventType.END_RUN:
             self.site_results.clear()
             self.remote_state = None

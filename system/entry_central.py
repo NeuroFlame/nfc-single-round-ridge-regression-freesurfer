@@ -1,9 +1,11 @@
+"""Start the central NVFlare service and submit the computation job."""
+
 import os
 import subprocess
-from nvflare.fuel.flare_api.flare_api import new_secure_session, Session
-from nvflare.apis.job_def import JobMetaKey, RunStatus
 
 from framework.errors import raise_for_terminal_errors
+from nvflare.apis.job_def import JobMetaKey, RunStatus
+from nvflare.fuel.flare_api.flare_api import Session, new_secure_session
 
 # Path Constants
 STARTUP_SCRIPT_DIRECTORY = "/workspace/runKit/server/startup"
@@ -12,20 +14,27 @@ ADMIN_DIRECTORY_PATH = "/workspace/runKit/admin"
 JOB_DIRECTORY_PATH = "/workspace/runKit/job/"
 ADMIN_USER_EMAIL = "admin@admin.com"
 
+
 def start_server():
+    """Start the provisioned NVFlare server process."""
     subprocess.run(
         ["/bin/bash", STARTUP_SCRIPT_PATH],
         cwd=STARTUP_SCRIPT_DIRECTORY,
         check=True,
     )
 
-def job_status_callback(session: Session, job_id: str, job_meta, *cb_args, **cb_kwargs) -> bool:
+
+def job_status_callback(
+    session: Session, job_id: str, job_meta, *cb_args, **cb_kwargs
+) -> bool:
+    """Log job status updates while monitoring a submitted job."""
     job_status = job_meta[JobMetaKey.STATUS.value]
     print(f"Job status: {job_status}")
     return True
 
 
 def main():
+    """Run the central service and wait for the job to finish."""
     start_server()
     session = new_secure_session(
         ADMIN_USER_EMAIL,

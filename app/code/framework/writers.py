@@ -1,3 +1,5 @@
+"""Write standard computation output types to site output directories."""
+
 import json
 import os
 from collections.abc import Mapping
@@ -6,15 +8,17 @@ from typing import Any
 from .serialization import serialize_value
 from .types import RuntimeContext
 
-
 _TEXT_EXTENSIONS = {".htm", ".html", ".md", ".txt"}
 
 
 def write_standard_outputs(outputs: Mapping, runtime: RuntimeContext) -> None:
+    """Write a filename-to-value mapping using the standard output formats."""
     if outputs is None:
         return
     if not isinstance(outputs, Mapping):
-        raise TypeError("site_output_step must return a filename-to-value mapping or None")
+        raise TypeError(
+            "site_output_step must return a filename-to-value mapping or None"
+        )
 
     os.makedirs(runtime.output_dir, exist_ok=True)
 
@@ -63,7 +67,9 @@ def _resolve_output_path(output_dir: str, file_name: Any) -> str:
     if not isinstance(file_name, str) or not file_name:
         raise TypeError("Output filenames must be non-empty strings")
     if os.path.isabs(file_name):
-        raise ValueError(f"Output filename must be relative to output_dir: {file_name!r}")
+        raise ValueError(
+            f"Output filename must be relative to output_dir: {file_name!r}"
+        )
 
     output_root = os.path.abspath(output_dir)
     output_path = os.path.abspath(os.path.join(output_root, file_name))

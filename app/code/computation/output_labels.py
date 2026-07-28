@@ -1,10 +1,11 @@
+"""Labels used in ridge result payloads and output files."""
+
 from enum import Enum, unique
 
 
 class GlobalOutputMetricLabels(Enum):
-    """
-      Holds the strings constants used for the displaying and gathering data
-    """
+    """Define metric labels used in global and local output."""
+
     COEFFICIENT = "Coefficient"
     R_SQUARE = "R Squared"
     T_STAT = "t Stat"
@@ -16,9 +17,8 @@ class GlobalOutputMetricLabels(Enum):
 
 @unique
 class OutputDictKeyLabels(Enum):
-    """
-        Holds the strings constants used for the displaying the results
-    """
+    """Define top-level labels used in result records."""
+
     ROI = "ROI"
     GLOBAL_STATS = "global_stats"
     LOCAL_STATS = "local_stats"

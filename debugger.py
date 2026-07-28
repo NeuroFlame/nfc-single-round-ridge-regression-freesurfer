@@ -1,24 +1,36 @@
+"""Run a generated ridge job with the NVFlare simulator API."""
+
 import argparse
 import os
 import sys
-from sys import platform
-
-from nvflare.private.fed.app.simulator.simulator_runner import SimulatorRunner
 
 from framework.errors import raise_for_terminal_errors
+from nvflare.private.fed.app.simulator.simulator_runner import SimulatorRunner
 
 
 def define_simulator_parser(simulator_parser):
+    """Add NVFlare simulator options to an argument parser."""
     simulator_parser.add_argument("job_folder")
-    simulator_parser.add_argument("-w", "--workspace", type=str, help="WORKSPACE folder")
-    simulator_parser.add_argument("-n", "--n_clients", type=int, help="number of clients")
+    simulator_parser.add_argument(
+        "-w", "--workspace", type=str, help="WORKSPACE folder"
+    )
+    simulator_parser.add_argument(
+        "-n", "--n_clients", type=int, help="number of clients"
+    )
     simulator_parser.add_argument("-c", "--clients", type=str, help="client names list")
-    simulator_parser.add_argument("-t", "--threads", type=int, help="number of parallel running clients")
-    simulator_parser.add_argument("-gpu", "--gpu", type=str, help="list of GPU Device Ids, comma separated")
-    simulator_parser.add_argument("-m", "--max_clients", type=int, default=100, help="max number of clients")
+    simulator_parser.add_argument(
+        "-t", "--threads", type=int, help="number of parallel running clients"
+    )
+    simulator_parser.add_argument(
+        "-gpu", "--gpu", type=str, help="list of GPU Device Ids, comma separated"
+    )
+    simulator_parser.add_argument(
+        "-m", "--max_clients", type=int, default=100, help="max number of clients"
+    )
 
 
 def run_simulator(simulator_args):
+    """Run the simulator and raise any recorded terminal computation error."""
     simulator = SimulatorRunner(
         job_folder=simulator_args.job_folder,
         workspace=simulator_args.workspace,

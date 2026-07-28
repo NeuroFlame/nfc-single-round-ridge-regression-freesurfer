@@ -1,3 +1,5 @@
+"""Define internal workflow and runtime value objects."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -6,13 +8,14 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 from .serialization import DEFAULT_MAX_INLINE_ARRAY_BYTES
 
-
 ITERATION_INDEX_KEY = "__neuroflame_iteration__"
 ITERATION_STOP_KEY = "__neuroflame_iteration_stop__"
 
 
 @dataclass
 class RuntimeContext:
+    """Runtime services and paths available to an author function."""
+
     fl_ctx: Any
     data_dir: str
     output_dir: str
@@ -23,6 +26,8 @@ class RuntimeContext:
 
 @dataclass
 class StepResult:
+    """Normalized payload, state, and output returned by a wrapped step."""
+
     payload: Any = None
     local_state: Any = None
     remote_state: Any = None
@@ -31,9 +36,17 @@ class StepResult:
 
 @dataclass
 class StepDefinition:
+    """Internal executable definition of one site-side workflow step."""
+
     name: str
-    local_fn: Callable[[Any, Dict[str, Any], Dict[str, Any], RuntimeContext], StepResult]
-    remote_fn: Optional[Callable[[Dict[str, Any], Dict[str, Any], Dict[str, Any], RuntimeContext], StepResult]] = None
+    local_fn: Callable[
+        [Any, Dict[str, Any], Dict[str, Any], RuntimeContext], StepResult
+    ]
+    remote_fn: Optional[
+        Callable[
+            [Dict[str, Any], Dict[str, Any], Dict[str, Any], RuntimeContext], StepResult
+        ]
+    ] = None
     local_input_type: Optional[type] = None
     remote_site_result_type: Optional[type] = None
     is_site_output: bool = False
@@ -41,12 +54,16 @@ class StepDefinition:
 
 @dataclass
 class SteppedWorkflow:
+    """Known sequence of distinct local, remote, and output steps."""
+
     steps: List[StepDefinition]
     local_state_type: Optional[type] = None
 
 
 @dataclass
 class IterativeWorkflow:
+    """Repeated local and remote update pair followed by site output."""
+
     iteration_step: StepDefinition
     output_step: StepDefinition
     stop_fn: Optional[Callable[[Any, Dict[str, Any], Any, RuntimeContext], bool]] = None
@@ -59,6 +76,8 @@ WorkflowDefinition = Union[SteppedWorkflow, IterativeWorkflow]
 
 @dataclass(init=False)
 class ComputationSpec:
+    """Top-level author configuration for a computation workflow."""
+
     workflow: WorkflowDefinition
     codecs: Dict[type, Any] = field(default_factory=dict)
     max_inline_array_bytes: int = DEFAULT_MAX_INLINE_ARRAY_BYTES
@@ -70,6 +89,7 @@ class ComputationSpec:
         codecs: Optional[Mapping] = None,
         max_inline_array_bytes: int = DEFAULT_MAX_INLINE_ARRAY_BYTES,
     ):
+        """Validate and store workflow and serialization options."""
         if not isinstance(workflow, (SteppedWorkflow, IterativeWorkflow)):
             raise TypeError(
                 "ComputationSpec workflow must be created by stepped_workflow(...) "

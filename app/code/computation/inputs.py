@@ -1,14 +1,16 @@
+"""Load and prepare site inputs for ridge regression."""
+
 import os
 
 import statsmodels.api as sm
 
 from . import constants
 from . import input_validation as iv
-
 from .types import RidgeInputs
 
 
 def load_ridge_inputs(data_dir, parameters, logger) -> RidgeInputs:
+    """Load the standard ridge input files from a site data directory."""
     return load_inputs(
         os.path.join(data_dir, "covariates.csv"),
         os.path.join(data_dir, "data.csv"),
@@ -18,6 +20,7 @@ def load_ridge_inputs(data_dir, parameters, logger) -> RidgeInputs:
 
 
 def load_inputs(covariates_path, data_path, parameters, logger) -> RidgeInputs:
+    """Validate input files and build the local ridge input object."""
     logger.info(f"Computation parameters received: {parameters}")
     is_valid, covariates, data = iv.validate_and_get_inputs(
         covariates_path,

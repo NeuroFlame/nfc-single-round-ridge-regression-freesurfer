@@ -1,10 +1,17 @@
-from framework import ComputationSpec, local_step, remote_step, site_output_step, stepped_workflow
+"""Declare the ridge regression computation workflow."""
+
+from framework import (
+    ComputationSpec,
+    local_step,
+    remote_step,
+    site_output_step,
+    stepped_workflow,
+)
 
 from .inputs import load_ridge_inputs
 from .local_math import compute_local_metrics, fit_local_models
 from .remote_math import aggregate_final_results, aggregate_global_model
 from .results import build_output_payloads
-
 
 SPEC = ComputationSpec(
     workflow=stepped_workflow(

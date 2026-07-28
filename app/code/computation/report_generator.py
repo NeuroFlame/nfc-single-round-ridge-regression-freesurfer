@@ -1,27 +1,36 @@
-"""
-report_generator.py
-Generates a styled HTML report for the Ridge Regression federated computation,
-matching the visual style of the CSV Analyzer report.
-"""
-from html import escape
-from typing import List, Dict, Any
+"""Generate a styled HTML report for federated ridge regression.
 
+The report follows the visual structure used by the CSV Analyzer report.
+"""
+
+from html import escape
+from typing import Any, Dict, List
 
 # ── Site colour palette (matches CSV Analyzer) ──────────────────────────────
 _SITE_COLORS = [
-    "rgba(99,102,241,0.65)",  "rgba(20,184,166,0.65)",
-    "rgba(245,158,11,0.65)",  "rgba(239,68,68,0.65)",
-    "rgba(168,85,247,0.65)",  "rgba(34,197,94,0.65)",
+    "rgba(99,102,241,0.65)",
+    "rgba(20,184,166,0.65)",
+    "rgba(245,158,11,0.65)",
+    "rgba(239,68,68,0.65)",
+    "rgba(168,85,247,0.65)",
+    "rgba(34,197,94,0.65)",
 ]
 _SITE_COLORS_SOLID = [c.replace("0.65", "1.0") for c in _SITE_COLORS]
-_SITE_PILL_BG    = [c.replace("0.65", "0.12") for c in _SITE_COLORS]
-_SITE_PILL_TEXT  = ["#3730a3","#0f766e","#92400e","#991b1b","#6b21a8","#166534"]
+_SITE_PILL_BG = [c.replace("0.65", "0.12") for c in _SITE_COLORS]
+_SITE_PILL_TEXT = ["#3730a3", "#0f766e", "#92400e", "#991b1b", "#6b21a8", "#166534"]
 
 
 def _site_maps(all_sites):
-    solid = {s: _SITE_COLORS_SOLID[i % len(_SITE_COLORS_SOLID)] for i, s in enumerate(all_sites)}
-    pill_bg = {s: _SITE_PILL_BG[i % len(_SITE_PILL_BG)]         for i, s in enumerate(all_sites)}
-    pill_txt = {s: _SITE_PILL_TEXT[i % len(_SITE_PILL_TEXT)]    for i, s in enumerate(all_sites)}
+    solid = {
+        s: _SITE_COLORS_SOLID[i % len(_SITE_COLORS_SOLID)]
+        for i, s in enumerate(all_sites)
+    }
+    pill_bg = {
+        s: _SITE_PILL_BG[i % len(_SITE_PILL_BG)] for i, s in enumerate(all_sites)
+    }
+    pill_txt = {
+        s: _SITE_PILL_TEXT[i % len(_SITE_PILL_TEXT)] for i, s in enumerate(all_sites)
+    }
     return solid, pill_bg, pill_txt
 
 
@@ -30,11 +39,13 @@ def _h(value) -> str:
 
 
 def _pill(site, solid_map, bg_map, txt_map):
-    return (f'<span style="display:inline-flex;align-items:center;gap:.35rem;'
-            f'background:{bg_map[site]};color:{txt_map[site]};border:1px solid {solid_map[site]};'
-            f'border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600">'
-            f'<span style="width:8px;height:8px;border-radius:50%;background:{solid_map[site]};'
-            f'flex-shrink:0"></span>{_h(site)}</span>')
+    return (
+        f'<span style="display:inline-flex;align-items:center;gap:.35rem;'
+        f"background:{bg_map[site]};color:{txt_map[site]};border:1px solid {solid_map[site]};"
+        f'border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600">'
+        f'<span style="width:8px;height:8px;border-radius:50%;background:{solid_map[site]};'
+        f'flex-shrink:0"></span>{_h(site)}</span>'
+    )
 
 
 def _p_style(p):
@@ -42,11 +53,14 @@ def _p_style(p):
     if p is None or p >= 0.05:
         return "color:var(--text3)"
     import math
-    t = math.log(max(p, 1e-10) / 0.05) / math.log(0.001 / 0.05)  # 0 at p=0.05, 1 at p=0.001
+
+    t = math.log(max(p, 1e-10) / 0.05) / math.log(
+        0.001 / 0.05
+    )  # 0 at p=0.05, 1 at p=0.001
     t = max(0.0, min(1.0, t))
-    alpha  = round(0.08 + t * 0.47, 3)
+    alpha = round(0.08 + t * 0.47, 3)
     weight = "700" if t > 0.55 else "600" if t > 0.2 else "400"
-    text   = "#065f46" if alpha > 0.3 else "#047857"
+    text = "#065f46" if alpha > 0.3 else "#047857"
     return f"background:rgba(16,185,129,{alpha});color:{text};font-weight:{weight}"
 
 
@@ -56,9 +70,9 @@ def generate_report_html(
     user_name: str = None,
     user_id: str = None,
 ) -> str:
-    """
-    Main entry point. Takes the agg_results list (same format as global_regression_result.json)
-    and returns a complete, styled HTML string.
+    """Generate a complete HTML report from aggregated ridge results.
+
+    The input uses the same record format as ``global_regression_result.json``.
     """
     rois = [r["ROI"] for r in results]
     all_sites = sorted(results[0]["local_stats"].keys()) if results else []
@@ -66,12 +80,27 @@ def generate_report_html(
     solid_map, bg_map, txt_map = _site_maps(all_sites)
 
     body = (
-        _build_header(rois, all_sites, covariates, computation_parameters, solid_map, bg_map, txt_map, user_name, user_id)
+        _build_header(
+            rois,
+            all_sites,
+            covariates,
+            computation_parameters,
+            solid_map,
+            bg_map,
+            txt_map,
+            user_name,
+            user_id,
+        )
         + _build_summary_section(results, all_sites, solid_map, bg_map, txt_map)
         + _build_coefficients_section(results, all_sites, solid_map, bg_map, txt_map)
         + _build_pvalue_section(results, all_sites, solid_map, bg_map, txt_map)
     )
-    nav_titles = ["Study Overview", "Global Summary", "Coefficients", "P-values & Significance"]
+    nav_titles = [
+        "Study Overview",
+        "Global Summary",
+        "Coefficients",
+        "P-values & Significance",
+    ]
     return _wrap_page(body, nav_titles=nav_titles)
 
 
@@ -79,12 +108,22 @@ def generate_report_html(
 # Sections
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _build_header(rois, all_sites, covariates, params, solid_map, bg_map, txt_map,
-                  user_name=None, user_id=None):
+
+def _build_header(
+    rois,
+    all_sites,
+    covariates,
+    params,
+    solid_map,
+    bg_map,
+    txt_map,
+    user_name=None,
+    user_id=None,
+):
     n_sites = len(all_sites)
-    n_rois  = len(rois)
-    n_cov   = len(covariates)
-    lam     = params.get("Lambda", "—")
+    n_rois = len(rois)
+    n_cov = len(covariates)
+    lam = params.get("Lambda", "—")
 
     legend = "".join(
         f'<div style="display:flex;align-items:center;gap:.45rem;font-size:.83rem;color:var(--legend-color)">'
@@ -98,9 +137,9 @@ def _build_header(rois, all_sites, covariates, params, solid_map, bg_map, txt_ma
         for r in rois
     )
 
-    return f'''<div class="page-header">
+    return f"""<div class="page-header">
   <h1>Single Round Ridge Regression</h1>
-  <p>Federated ridge regression across {n_sites} site{"s" if n_sites!=1 else ""}</p>
+  <p>Federated ridge regression across {n_sites} site{"s" if n_sites != 1 else ""}</p>
   <div class="chips">
     <div class="chip">Sites <b>{n_sites}</b></div>
     <div class="chip">Outcomes (ROIs) <b>{n_rois}</b></div>
@@ -109,7 +148,7 @@ def _build_header(rois, all_sites, covariates, params, solid_map, bg_map, txt_ma
   </div>
   <div style="margin-top:.9rem;display:flex;flex-wrap:wrap;gap:.4rem">{roi_pills}</div>
   <div class="site-legend" style="margin-top:.75rem">{legend}</div>
-</div>'''
+</div>"""
 
 
 def _build_summary_section(results, all_sites, solid_map, bg_map, txt_map):
@@ -117,7 +156,7 @@ def _build_summary_section(results, all_sites, solid_map, bg_map, txt_map):
     cards = ""
     for result in results:
         roi = result["ROI"]
-        gs  = result["global_stats"]
+        gs = result["global_stats"]
         r2g = gs.get("R Squared", "—")
         dof = gs.get("Degrees of Freedom", "—")
         sse = gs.get("Sum Square of Errors", "—")
@@ -125,14 +164,15 @@ def _build_summary_section(results, all_sites, solid_map, bg_map, txt_map):
         # per-site R² rows
         site_rows = ""
         for site in all_sites:
-            ls  = result["local_stats"].get(site, {})
+            ls = result["local_stats"].get(site, {})
             r2s = ls.get("R Squared")
             site_rows += (
                 f'<div style="display:flex;justify-content:space-between;align-items:center;'
                 f'padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.8rem">'
-                f'<span>{_pill(site, solid, bg, txt)}</span>'
+                f"<span>{_pill(site, solid, bg, txt)}</span>"
                 f'<span style="font-family:monospace;color:var(--td-mono)">'
-                + (f'{r2s:.4f}' if isinstance(r2s, float) else '—') + '</span></div>'
+                + (f"{r2s:.4f}" if isinstance(r2s, float) else "—")
+                + "</span></div>"
             )
 
         r2_bar = ""
@@ -145,11 +185,11 @@ def _build_summary_section(results, all_sites, solid_map, bg_map, txt_map):
                 f'<div style="font-size:.7rem;color:var(--text3);margin-top:.25rem">{pct:.1f}% variance explained (global)</div>'
             )
 
-        cards += f'''<div class="stat-card">
+        cards += f"""<div class="stat-card">
   <div class="stat-card-header">
     <div class="stat-card-title">{_h(roi)}</div>
-    <span class="badge {'badge-green' if isinstance(r2g,float) and r2g>=0.5 else 'badge-yellow' if isinstance(r2g,float) and r2g>=0.2 else 'badge-red'}">
-      R²&nbsp;{'%.4f'%r2g if isinstance(r2g,float) else '—'}
+    <span class="badge {"badge-green" if isinstance(r2g, float) and r2g >= 0.5 else "badge-yellow" if isinstance(r2g, float) and r2g >= 0.2 else "badge-red"}">
+      R²&nbsp;{"%.4f" % r2g if isinstance(r2g, float) else "—"}
     </span>
   </div>
   <div style="padding:.85rem 1rem">
@@ -164,60 +204,72 @@ def _build_summary_section(results, all_sites, solid_map, bg_map, txt_map):
       </div>
       <div style="background:var(--bg3);border-radius:8px;padding:.6rem .8rem">
         <div style="font-size:.7rem;color:var(--text3)">Global SSE</div>
-        <div style="font-family:monospace;font-size:.9rem;color:var(--td-mono);font-weight:600">{'%.2f'%sse if isinstance(sse,float) else _h(sse)}</div>
+        <div style="font-family:monospace;font-size:.9rem;color:var(--td-mono);font-weight:600">{"%.2f" % sse if isinstance(sse, float) else _h(sse)}</div>
       </div>
     </div>
   </div>
-</div>'''
+</div>"""
 
-    return _section("Global Summary", f'<div class="stats-grid">{cards}</div>', "global-summary")
+    return _section(
+        "Global Summary", f'<div class="stats-grid">{cards}</div>', "global-summary"
+    )
 
 
 def _build_coefficients_section(results, all_sites, solid_map, bg_map, txt_map):
     solid, bg, txt = solid_map, bg_map, txt_map
     html = ""
     for result in results:
-        roi  = result["ROI"]
-        gs   = result["global_stats"]
+        roi = result["ROI"]
+        gs = result["global_stats"]
         cov_labels = gs["covariate_labels"]
 
         # header row
-        site_hdrs = "".join(f'<th colspan="2">{_pill(s, solid, bg, txt)}</th>' for s in all_sites)
-        sub_hdrs  = "".join("<th>Coef</th><th>t</th>" for _ in all_sites)
+        site_hdrs = "".join(
+            f'<th colspan="2">{_pill(s, solid, bg, txt)}</th>' for s in all_sites
+        )
+        sub_hdrs = "".join("<th>Coef</th><th>t</th>" for _ in all_sites)
 
         rows = ""
         for i, cov in enumerate(cov_labels):
             g_coef = gs["Coefficient"][i] if i < len(gs["Coefficient"]) else None
-            g_t    = gs["t Stat"][i]      if i < len(gs["t Stat"])      else None
-            g_p    = gs["P-value"][i]     if i < len(gs["P-value"])     else None
-            g_p_str = ('%.4f' % g_p if isinstance(g_p, float) and g_p >= 0.0001 else ('<0.0001' if isinstance(g_p, float) else '—'))
+            g_t = gs["t Stat"][i] if i < len(gs["t Stat"]) else None
+            g_p = gs["P-value"][i] if i < len(gs["P-value"]) else None
+            g_p_str = (
+                "%.4f" % g_p
+                if isinstance(g_p, float) and g_p >= 0.0001
+                else ("<0.0001" if isinstance(g_p, float) else "—")
+            )
             p_cell = f'<td style="font-family:monospace;font-size:.79rem;{_p_style(g_p)}">{g_p_str}</td>'
 
             site_cells = ""
             for site in all_sites:
-                ls     = result["local_stats"].get(site, {})
-                l_coef = ls.get("Coefficient", [])[i] if i < len(ls.get("Coefficient",[])) else None
-                l_t    = ls.get("t Stat", [])[i]      if i < len(ls.get("t Stat",[]))      else None
+                ls = result["local_stats"].get(site, {})
+                l_coef = (
+                    ls.get("Coefficient", [])[i]
+                    if i < len(ls.get("Coefficient", []))
+                    else None
+                )
+                l_t = ls.get("t Stat", [])[i] if i < len(ls.get("t Stat", [])) else None
                 site_cells += (
                     f'<td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">'
-                    f'{"%.4f"%l_coef if isinstance(l_coef,float) else "—"}</td>'
+                    f"{'%.4f' % l_coef if isinstance(l_coef, float) else '—'}</td>"
                     f'<td style="font-family:monospace;font-size:.79rem;color:var(--text3)">'
-                    f'{"%.3f"%l_t if isinstance(l_t,float) else "—"}</td>'
+                    f"{'%.3f' % l_t if isinstance(l_t, float) else '—'}</td>"
                 )
 
-            rows += f'''<tr>
+            rows += f"""<tr>
   <td style="font-weight:600;color:var(--text2);white-space:nowrap">{_h(cov)}</td>
   <td style="font-family:monospace;font-size:.82rem;color:var(--td-mono);font-weight:700">
-    {'%.4f'%g_coef if isinstance(g_coef,float) else '—'}
+    {"%.4f" % g_coef if isinstance(g_coef, float) else "—"}
   </td>
   <td style="font-family:monospace;font-size:.79rem;color:var(--text3)">
-    {'%.3f'%g_t if isinstance(g_t,float) else '—'}
+    {"%.3f" % g_t if isinstance(g_t, float) else "—"}
   </td>
   {p_cell}
   {site_cells}
-</tr>'''
+</tr>"""
 
-        html += f'''<div class="hist-section" style="margin-bottom:1.5rem">
+        html += f"""<div class="hist-section" style="margin-bottom:1.5rem">
   <div class="hist-header">
     <div class="hist-title">{_h(roi)}</div>
     <span style="font-size:.8rem;color:var(--text3)">Global coef · t-stat · p-value, then per-site coef · t-stat</span>
@@ -241,7 +293,7 @@ def _build_coefficients_section(results, all_sites, solid_map, bg_map, txt_map):
   <div style="padding:.5rem 1rem .75rem;font-size:.72rem;color:var(--text3);border-top:1px solid var(--border)">
     *** p&lt;0.001 &nbsp;** p&lt;0.01 &nbsp;* p&lt;0.05
   </div>
-</div>'''
+</div>"""
 
     return _section("Coefficients", html, "coefficients")
 
@@ -251,30 +303,37 @@ def _build_pvalue_section(results, all_sites, solid_map, bg_map, txt_map):
     solid, bg, txt = solid_map, bg_map, txt_map
 
     def _p_cell(p):
-        if p is None: return '<td style="color:var(--text3)">—</td>'
-        val = f'{p:.4f}' if p >= 0.0001 else '<0.0001'
+        if p is None:
+            return '<td style="color:var(--text3)">—</td>'
+        val = f"{p:.4f}" if p >= 0.0001 else "<0.0001"
         return f'<td style="font-family:monospace;{_p_style(p)}">{val}</td>'
 
     html = '<div class="stat-card-scroll"><table class="stat-table" style="min-width:500px"><thead><tr>'
     html += '<th style="text-align:left">Variable</th>'
     for result in results:
-        html += f'<th>{_h(result["ROI"])}</th>'
-    html += '</tr></thead><tbody>'
+        html += f"<th>{_h(result['ROI'])}</th>"
+    html += "</tr></thead><tbody>"
 
     cov_labels = results[0]["global_stats"]["covariate_labels"] if results else []
     for i, cov in enumerate(cov_labels):
         html += f'<tr><td style="font-weight:600;color:var(--text2)">{_h(cov)}</td>'
         for result in results:
-            p = result["global_stats"]["P-value"][i] if i < len(result["global_stats"]["P-value"]) else None
+            p = (
+                result["global_stats"]["P-value"][i]
+                if i < len(result["global_stats"]["P-value"])
+                else None
+            )
             html += _p_cell(p)
-        html += '</tr>'
-    html += '</tbody></table></div>'
+        html += "</tr>"
+    html += "</tbody></table></div>"
 
-    legend = ('<div style="margin-top:.75rem;font-size:.77rem;color:var(--text3);display:flex;gap:1.2rem;flex-wrap:wrap">'
-              '<span style="background:rgba(16,185,129,.55);color:#065f46;font-weight:700;padding:.1rem .5rem;border-radius:4px">p&lt;0.001</span>'
-              '<span style="background:rgba(16,185,129,.3);color:#065f46;font-weight:600;padding:.1rem .5rem;border-radius:4px">p&lt;0.01</span>'
-              '<span style="background:rgba(16,185,129,.12);color:#047857;padding:.1rem .5rem;border-radius:4px">p&lt;0.05</span>'
-              '<span style="color:var(--text3)">— not significant</span></div>')
+    legend = (
+        '<div style="margin-top:.75rem;font-size:.77rem;color:var(--text3);display:flex;gap:1.2rem;flex-wrap:wrap">'
+        '<span style="background:rgba(16,185,129,.55);color:#065f46;font-weight:700;padding:.1rem .5rem;border-radius:4px">p&lt;0.001</span>'
+        '<span style="background:rgba(16,185,129,.3);color:#065f46;font-weight:600;padding:.1rem .5rem;border-radius:4px">p&lt;0.01</span>'
+        '<span style="background:rgba(16,185,129,.12);color:#047857;padding:.1rem .5rem;border-radius:4px">p&lt;0.05</span>'
+        '<span style="color:var(--text3)">— not significant</span></div>'
+    )
 
     # per-site p-value tables
     site_tabs = ""
@@ -283,45 +342,76 @@ def _build_pvalue_section(results, all_sites, solid_map, bg_map, txt_map):
         site_tabs += '<div class="stat-card-scroll"><table class="stat-table" style="min-width:400px"><thead><tr>'
         site_tabs += '<th style="text-align:left">Variable</th>'
         for result in results:
-            site_tabs += f'<th>{_h(result["ROI"])}</th>'
-        site_tabs += '</tr></thead><tbody>'
+            site_tabs += f"<th>{_h(result['ROI'])}</th>"
+        site_tabs += "</tr></thead><tbody>"
         for i, cov in enumerate(cov_labels):
-            site_tabs += f'<tr><td style="font-weight:600;color:var(--text2)">{_h(cov)}</td>'
+            site_tabs += (
+                f'<tr><td style="font-weight:600;color:var(--text2)">{_h(cov)}</td>'
+            )
             for result in results:
-                p = result["local_stats"].get(site, {}).get("P-value", [])[i] \
-                    if i < len(result["local_stats"].get(site, {}).get("P-value", [])) else None
+                p = (
+                    result["local_stats"].get(site, {}).get("P-value", [])[i]
+                    if i < len(result["local_stats"].get(site, {}).get("P-value", []))
+                    else None
+                )
                 site_tabs += _p_cell(p)
-            site_tabs += '</tr>'
-        site_tabs += '</tbody></table></div></div>'
+            site_tabs += "</tr>"
+        site_tabs += "</tbody></table></div></div>"
 
-    return _section("P-values & Significance",
-                    '<div style="margin-bottom:.4rem;font-size:.85rem;color:var(--text2);font-weight:600">Global p-values</div>'
-                    + html + legend
-                    + '<div style="margin-top:1.5rem;font-size:.85rem;color:var(--text2);font-weight:600">Per-site p-values</div>'
-                    + site_tabs,
-                    "p-values-significance")
+    return _section(
+        "P-values & Significance",
+        '<div style="margin-bottom:.4rem;font-size:.85rem;color:var(--text2);font-weight:600">Global p-values</div>'
+        + html
+        + legend
+        + '<div style="margin-top:1.5rem;font-size:.85rem;color:var(--text2);font-weight:600">Per-site p-values</div>'
+        + site_tabs,
+        "p-values-significance",
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Shell helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _section(title, content, slug=None):
     if slug is None:
-        slug = title.lower().replace(" ", "-").replace("(","").replace(")","").replace("&","").replace("/","")
-    return (f'<div class="container"><div class="section" id="sec-{slug}">'
-            f'<div class="section-title">{_h(title)}</div>{content}</div></div>')
+        slug = (
+            title.lower()
+            .replace(" ", "-")
+            .replace("(", "")
+            .replace(")", "")
+            .replace("&", "")
+            .replace("/", "")
+        )
+    return (
+        f'<div class="container"><div class="section" id="sec-{slug}">'
+        f'<div class="section-title">{_h(title)}</div>{content}</div></div>'
+    )
 
 
 def _wrap_page(body: str, nav_titles: list = None) -> str:
     nav_titles = nav_titles or []
+
     def _slug(t):
         import re
-        s = t.lower().replace("(","").replace(")","").replace("&","").replace("/","")
-        return re.sub(r'-+', '-', s.replace(" ","-")).strip("-")
+
+        s = (
+            t.lower()
+            .replace("(", "")
+            .replace(")", "")
+            .replace("&", "")
+            .replace("/", "")
+        )
+        return re.sub(r"-+", "-", s.replace(" ", "-")).strip("-")
+
     nav_items_html = "\n".join(
         '<button class="nav-item" data-sec="sec-' + _slug(t) + '" '
-        'onclick="document.getElementById(\'sec-' + _slug(t) + '\').scrollIntoView({behavior:\'smooth\',block:\'start\'})">' + _h(t) + '</button>'
+        "onclick=\"document.getElementById('sec-"
+        + _slug(t)
+        + "').scrollIntoView({behavior:'smooth',block:'start'})\">"
+        + _h(t)
+        + "</button>"
         for t in nav_titles
     )
     sidebar_and_body = (
@@ -331,13 +421,9 @@ def _wrap_page(body: str, nav_titles: list = None) -> str:
         '<div class="sidebar-header">'
         '<span class="sidebar-label">Sections</span>'
         '<button class="sidebar-toggle" onclick="toggleSidebar()">&#x2715;</button>'
-        '</div>'
-        + nav_items_html +
-        '</div></aside>'
+        "</div>" + nav_items_html + "</div></aside>"
         '<button class="sidebar-peek" id="sidebarPeek" onclick="toggleSidebar()">Sections</button>'
-        '<div class="main-content">'
-        + body +
-        '</div></div>'
+        '<div class="main-content">' + body + "</div></div>"
     )
     return f"""<!DOCTYPE html>
 <html lang="en">

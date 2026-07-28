@@ -1,3 +1,5 @@
+"""Serialize computation values for JSON-safe NVFlare transport."""
+
 import base64
 import binascii
 import importlib
@@ -12,7 +14,6 @@ from typing import Any, Dict, Union, get_args, get_origin, get_type_hints
 
 from .artifacts import ArtifactRef
 
-
 DEFAULT_MAX_INLINE_ARRAY_BYTES = 8 * 1024 * 1024
 
 _SERIALIZED_TYPE_KEY = "__neuroflame_type__"
@@ -24,14 +25,20 @@ _NONE_TYPE = type(None)
 
 
 class DataFrameSplitJsonCodec:
+    """Encode pandas DataFrames with the split JSON orientation."""
+
     @staticmethod
     def encode(value):
+        """Convert a DataFrame into split-orientation JSON data."""
         return value.to_dict(orient="split")
 
     @staticmethod
     def decode(value):
+        """Reconstruct a DataFrame from split-orientation JSON data."""
         pandas = _require_module("pandas", "DataFrame deserialization")
-        if not isinstance(value, dict) or not {"index", "columns", "data"}.issubset(value):
+        if not isinstance(value, dict) or not {"index", "columns", "data"}.issubset(
+            value
+        ):
             raise TypeError("Invalid split-format pandas DataFrame payload")
         return pandas.DataFrame(
             data=value["data"],
@@ -41,8 +48,11 @@ class DataFrameSplitJsonCodec:
 
 
 class NumpyArrayCodec:
+    """Encode bounded NumPy arrays with dtype and shape metadata."""
+
     @staticmethod
     def encode(value, max_inline_array_bytes=DEFAULT_MAX_INLINE_ARRAY_BYTES):
+        """Convert a safe NumPy array into an inline base64 payload."""
         numpy = _require_module("numpy", "NumPy array serialization")
         _validate_inline_limit(max_inline_array_bytes)
         if not isinstance(value, numpy.ndarray):
@@ -57,9 +67,12 @@ class NumpyArrayCodec:
 
     @staticmethod
     def decode(value, max_inline_array_bytes=DEFAULT_MAX_INLINE_ARRAY_BYTES):
+        """Reconstruct a safe NumPy array from an inline base64 payload."""
         numpy = _require_module("numpy", "NumPy array deserialization")
         _validate_inline_limit(max_inline_array_bytes)
-        if not isinstance(value, dict) or not {"dtype", "shape", "data"}.issubset(value):
+        if not isinstance(value, dict) or not {"dtype", "shape", "data"}.issubset(
+            value
+        ):
             raise TypeError("Invalid NumPy array payload")
 
         try:
@@ -98,6 +111,7 @@ def serialize_value(
     *,
     max_inline_array_bytes: int = DEFAULT_MAX_INLINE_ARRAY_BYTES,
 ) -> Any:
+    """Convert a supported computation value into JSON-safe transport data."""
     return _Serializer(codecs or {}, max_inline_array_bytes).serialize(value)
 
 
@@ -108,7 +122,10 @@ def deserialize_value(
     *,
     max_inline_array_bytes: int = DEFAULT_MAX_INLINE_ARRAY_BYTES,
 ) -> Any:
-    return _Serializer(codecs or {}, max_inline_array_bytes).deserialize(value, expected_type)
+    """Reconstruct a computation value from JSON-safe transport data."""
+    return _Serializer(codecs or {}, max_inline_array_bytes).deserialize(
+        value, expected_type
+    )
 
 
 class _Serializer:
@@ -152,8 +169,7 @@ class _Serializer:
             }
         if isinstance(value, dict):
             return {
-                self.serialize(key): self.serialize(item)
-                for key, item in value.items()
+                self.serialize(key): self.serialize(item) for key, item in value.items()
             }
         if isinstance(value, (list, tuple)):
             return [self.serialize(item) for item in value]
@@ -172,9 +188,13 @@ class _Serializer:
         if numpy_scalar is not _NOT_TAGGED:
             return numpy_scalar
 
-        raise TypeError(f"Value of type {type(value)!r} is not JSON serializable by the framework")
+        raise TypeError(
+            f"Value of type {type(value)!r} is not JSON serializable by the framework"
+        )
 
-    def deserialize(self, value: Any, expected_type: Any = None, codec: Any = None) -> Any:
+    def deserialize(
+        self, value: Any, expected_type: Any = None, codec: Any = None
+    ) -> Any:
         if value is None:
             return None
         if codec is not None:
@@ -192,7 +212,9 @@ class _Serializer:
         if annotated_type is not None and origin is annotated_type:
             return self.deserialize(value, args[0] if args else Any)
         if _is_dataframe_type(expected_type):
-            return DataFrameSplitJsonCodec.decode(self._standard_payload(value, _DATAFRAME_TAG))
+            return DataFrameSplitJsonCodec.decode(
+                self._standard_payload(value, _DATAFRAME_TAG)
+            )
         if _is_numpy_array_type(expected_type):
             return NumpyArrayCodec.decode(
                 self._standard_payload(value, _NUMPY_ARRAY_TAG),
@@ -201,7 +223,9 @@ class _Serializer:
 
         tagged_value = self._decode_tagged(value)
         if tagged_value is not _NOT_TAGGED:
-            if isinstance(expected_type, type) and isinstance(tagged_value, expected_type):
+            if isinstance(expected_type, type) and isinstance(
+                tagged_value, expected_type
+            ):
                 return tagged_value
             raise TypeError(
                 f"Serialized {type(tagged_value).__name__} value does not match "
@@ -288,7 +312,9 @@ class _Serializer:
             return value
         actual_tag = value.get(_SERIALIZED_TYPE_KEY)
         if actual_tag != expected_tag:
-            raise TypeError(f"Expected serialized {expected_tag}, received {actual_tag!r}")
+            raise TypeError(
+                f"Expected serialized {expected_tag}, received {actual_tag!r}"
+            )
         if _SERIALIZED_VALUE_KEY not in value:
             raise TypeError(f"Serialized {expected_tag} value is missing its payload")
         return value[_SERIALIZED_VALUE_KEY]
@@ -296,7 +322,9 @@ class _Serializer:
     def _deserialize_union(self, value: Any, candidates) -> Any:
         if value is None and _NONE_TYPE in candidates:
             return None
-        non_none_candidates = [candidate for candidate in candidates if candidate is not _NONE_TYPE]
+        non_none_candidates = [
+            candidate for candidate in candidates if candidate is not _NONE_TYPE
+        ]
         ordered_candidates = sorted(
             non_none_candidates,
             key=lambda candidate: _wire_match_score(value, candidate),
@@ -343,7 +371,11 @@ def _wire_match_score(value: Any, expected_type: Any) -> int:
         return 2
     if origin is dict and isinstance(value, dict):
         return 2
-    if isinstance(expected_type, type) and is_dataclass(expected_type) and isinstance(value, dict):
+    if (
+        isinstance(expected_type, type)
+        and is_dataclass(expected_type)
+        and isinstance(value, dict)
+    ):
         return 2
     if _tag_name(value) == _DATAFRAME_TAG and _is_dataframe_type(expected_type):
         return 3
@@ -361,7 +393,9 @@ def _tag_name(value: Any):
 
 
 def _validate_inline_limit(max_inline_array_bytes: int) -> None:
-    if not isinstance(max_inline_array_bytes, int) or isinstance(max_inline_array_bytes, bool):
+    if not isinstance(max_inline_array_bytes, int) or isinstance(
+        max_inline_array_bytes, bool
+    ):
         raise TypeError("max_inline_array_bytes must be an integer byte count")
     if max_inline_array_bytes < 0:
         raise ValueError("max_inline_array_bytes cannot be negative")

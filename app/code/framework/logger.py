@@ -1,7 +1,8 @@
+"""Create and close computation-scoped file loggers."""
+
 import logging
 import os
 from typing import Any, Dict
-
 
 _LOG_LEVELS = {
     "debug": logging.DEBUG,
@@ -17,6 +18,7 @@ def create_computation_logger(
     file_name: str,
     parameters: Dict[str, Any],
 ) -> logging.Logger:
+    """Create a non-propagating logger that writes inside the output directory."""
     if not isinstance(file_name, str) or not file_name:
         raise TypeError("Computation log filename must be a non-empty string")
     if os.path.isabs(file_name) or os.path.basename(file_name) != file_name:
@@ -38,6 +40,7 @@ def create_computation_logger(
 
 
 def close_computation_logger(logger: logging.Logger) -> None:
+    """Close and detach every handler owned by a computation logger."""
     for handler in tuple(logger.handlers):
         logger.removeHandler(handler)
         handler.close()

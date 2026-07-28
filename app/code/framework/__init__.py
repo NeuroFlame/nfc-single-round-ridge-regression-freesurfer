@@ -1,3 +1,5 @@
+"""Public author-facing API for NeuroFLAME computations."""
+
 from .types import ComputationSpec
 from .workflow import (
     iterative_workflow,

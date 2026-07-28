@@ -1,13 +1,15 @@
+"""Record terminal computation failures for container-level reporting."""
+
 import json
 import os
 import traceback
 from typing import Any, Dict, List
 
-
 TERMINAL_ERROR_FILE_NAME = ".neuroflame_error.json"
 
 
 def clear_terminal_error(output_dir: str) -> None:
+    """Remove a terminal-error marker left by an earlier run."""
     error_path = os.path.join(output_dir, TERMINAL_ERROR_FILE_NAME)
     try:
         os.remove(error_path)
@@ -16,6 +18,7 @@ def clear_terminal_error(output_dir: str) -> None:
 
 
 def record_terminal_error(output_dir: str, scope: str, error: Exception) -> None:
+    """Persist an exception and traceback without replacing the original error."""
     try:
         os.makedirs(output_dir, exist_ok=True)
         error_path = os.path.join(output_dir, TERMINAL_ERROR_FILE_NAME)
@@ -36,6 +39,7 @@ def record_terminal_error(output_dir: str, scope: str, error: Exception) -> None
 
 
 def find_terminal_errors(root_dir: str) -> List[Dict[str, Any]]:
+    """Find and parse every terminal-error marker below a directory."""
     errors = []
     if not os.path.isdir(root_dir):
         return errors
@@ -63,6 +67,7 @@ def find_terminal_errors(root_dir: str) -> List[Dict[str, Any]]:
 
 
 def raise_for_terminal_errors(root_dir: str) -> None:
+    """Raise one combined error when terminal markers exist below a directory."""
     errors = find_terminal_errors(root_dir)
     if not errors:
         return

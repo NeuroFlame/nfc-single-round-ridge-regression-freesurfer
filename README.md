@@ -145,6 +145,17 @@ To locally run this computation, please clone this repo and run:
 ./run_local_simulation.sh site1,site2,site3,site4
 ```
 
+Set up and run the pinned Python quality checks with:
+
+```bash
+make setup-dev
+make check
+```
+
+Use `make format` to apply safe Ruff fixes and formatting across the repository,
+or `make format-author` to update only `app/code/computation/`. Public Python
+modules, classes, methods, and functions require Google-style docstrings.
+
 This script will:
 - build the local dev image
 - create the NVFlare job

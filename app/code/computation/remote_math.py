@@ -1,17 +1,26 @@
+"""Remote aggregation functions for federated ridge regression."""
+
 from itertools import repeat
 from typing import Dict
 
 import numpy as np
 import pandas as pd
 import scipy as sp
-
 from framework import with_state
 
 from .output_labels import GlobalOutputMetricLabels, OutputDictKeyLabels
-from .types import AggregatorState, FinalResults, GlobalModelSummary, GlobalRoiModel, LocalMetricSummary, LocalModelSummary
+from .types import (
+    AggregatorState,
+    FinalResults,
+    GlobalModelSummary,
+    GlobalRoiModel,
+    LocalMetricSummary,
+    LocalModelSummary,
+)
 
 
 def aggregate_global_model(site_results_payload: Dict[str, LocalModelSummary]):
+    """Aggregate local model summaries into a global model."""
     site_results = site_results_payload
 
     if not site_results:
@@ -99,12 +108,22 @@ def aggregate_global_model(site_results_payload: Dict[str, LocalModelSummary]):
     return with_state(GlobalModelSummary(roi_models=roi_models), aggregator_state)
 
 
-def aggregate_final_results(site_results_payload: Dict[str, LocalMetricSummary], state: AggregatorState) -> FinalResults:
+def aggregate_final_results(
+    site_results_payload: Dict[str, LocalMetricSummary], state: AggregatorState
+) -> FinalResults:
+    """Combine site metrics with cached model state into final results."""
     local_metric_summaries = site_results_payload
 
-    sse_global = sum(np.array(summary.sse_local) for summary in local_metric_summaries.values())
-    sst_global = sum(np.array(summary.sst_local) for summary in local_metric_summaries.values())
-    varx_matrix_global = sum(np.array(summary.varx_matrix_local) for summary in local_metric_summaries.values())
+    sse_global = sum(
+        np.array(summary.sse_local) for summary in local_metric_summaries.values()
+    )
+    sst_global = sum(
+        np.array(summary.sst_local) for summary in local_metric_summaries.values()
+    )
+    varx_matrix_global = sum(
+        np.array(summary.varx_matrix_local)
+        for summary in local_metric_summaries.values()
+    )
 
     r_squared_global = 1 - (sse_global / sst_global)
     mse = sse_global / np.array(state.global_degrees_of_freedom)

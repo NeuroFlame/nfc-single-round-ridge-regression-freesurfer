@@ -1,28 +1,40 @@
-import json
-from typing import Dict, Any
+"""Build shared runtime values used by framework components."""
 
-from nvflare.apis.fl_context import FLContext
+import json
+from typing import Any, Dict
+
 from nvflare.apis.fl_constant import FLContextKey
+from nvflare.apis.fl_context import FLContext
 
 from .logger import create_computation_logger
-from .paths import get_data_directory_path, get_output_directory_path, get_parameters_file_path
+from .paths import (
+    get_data_directory_path,
+    get_output_directory_path,
+    get_parameters_file_path,
+)
 from .types import ComputationSpec, RuntimeContext
 
 
 def load_computation_parameters(fl_ctx: FLContext) -> Dict[str, Any]:
-    with open(get_parameters_file_path(fl_ctx), "r", encoding="utf-8") as parameters_file:
+    """Load computation parameters from the resolved JSON file."""
+    with open(
+        get_parameters_file_path(fl_ctx), "r", encoding="utf-8"
+    ) as parameters_file:
         return json.load(parameters_file)
 
 
 def resolve_data_directory(fl_ctx: FLContext) -> str:
+    """Resolve the site-local data directory."""
     return get_data_directory_path(fl_ctx)
 
 
 def resolve_output_directory(fl_ctx: FLContext) -> str:
+    """Resolve the current participant's output directory."""
     return get_output_directory_path(fl_ctx)
 
 
 def resolve_site_name(site_id: str, parameters: Dict[str, Any]) -> str:
+    """Map an internal site identifier to its configured display name."""
     site_id_name_map = parameters.get("site_id_name_map", {})
     return site_id_name_map.get(site_id, site_id)
 
@@ -34,6 +46,7 @@ def build_runtime_context(
     parameters: Dict[str, Any],
     logger_suffix: str,
 ) -> RuntimeContext:
+    """Build the paths, logger, and metadata injected into author functions."""
     output_dir = resolve_output_directory(fl_ctx)
     data_dir = ""
 
@@ -43,8 +56,7 @@ def build_runtime_context(
         data_dir = ""
 
     client_name = (
-        fl_ctx.get_prop(FLContextKey.CLIENT_NAME, default="aggregator")
-        or "aggregator"
+        fl_ctx.get_prop(FLContextKey.CLIENT_NAME, default="aggregator") or "aggregator"
     )
     logger = create_computation_logger(
         output_dir,
