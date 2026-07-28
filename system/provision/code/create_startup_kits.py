@@ -17,6 +17,7 @@ def create_startup_kits(project_file_path: str, output_directory: str) -> None:
         project_file_path,
         "-w",
         output_directory,
+        "--force",
     ]
 
     try:

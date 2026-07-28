@@ -436,7 +436,7 @@ def perform_remote_step2(site_results):
     from itertools import repeat
 
     def get_stats_to_dict(a, *b):
-        df = pd.DataFrame(list(zip(*b)), columns=a)
+        df = pd.DataFrame(list(zip(*b, strict=False)), columns=a)
         dict_list = df.to_dict(orient="records")
 
         return dict_list
@@ -491,10 +491,12 @@ def perform_remote_step2(site_results):
     # Block of code to print local stats as well
     sites = [site for site in site_results]
 
-    all_local_stats_dicts = list(map(list, zip(*all_local_stats_dicts_old)))
+    all_local_stats_dicts = list(
+        map(list, zip(*all_local_stats_dicts_old, strict=False))
+    )
 
     a_dict = [
-        {key: value for key, value in zip(sites, stats_dict)}
+        {key: value for key, value in zip(sites, stats_dict, strict=False)}
         for stats_dict in all_local_stats_dicts
     ]
 

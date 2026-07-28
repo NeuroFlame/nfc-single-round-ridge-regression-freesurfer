@@ -18,7 +18,6 @@ def provision_run(
     path_app: str,
     computation_parameters: str,
     fed_learn_port: int,
-    admin_port: int,
     host_identifier: str,
 ) -> None:
     """Create startup and run kits for a computation request."""
@@ -37,7 +36,6 @@ def provision_run(
         project_name="project",
         host_identifier=host_identifier,
         fed_learn_port=fed_learn_port,
-        admin_port=admin_port,
         output_file_path=os.path.join(path_run, "Project.yml"),
         site_names=user_ids,
     )
@@ -50,7 +48,9 @@ def provision_run(
     create_run_kits(
         path_app=path_app,
         user_ids=user_ids,
-        startup_kits_path=os.path.join(path_startup_kits, "project", "prod_00"),
+        startup_kits_path=find_latest_production_directory(
+            os.path.join(path_startup_kits, "project")
+        ),
         output_directory=path_run_kits,
         computation_parameters=computation_parameters,
         host_identifier=host_identifier,
@@ -70,5 +70,20 @@ def ensure_directory_exists(directory_path: str) -> None:
         raise
 
 
+def find_latest_production_directory(project_workspace: str) -> str:
+    """Return the most recently numbered successful provisioning directory."""
+    production_directories = []
+    for name in os.listdir(project_workspace):
+        prefix, separator, stage = name.partition("_")
+        path = os.path.join(project_workspace, name)
+        if prefix == "prod" and separator and stage.isdigit() and os.path.isdir(path):
+            production_directories.append((int(stage), path))
+    if not production_directories:
+        raise FileNotFoundError(
+            f"No prod_NN directory found in provisioning workspace '{project_workspace}'"
+        )
+    return max(production_directories)[1]
+
+
 # Example usage:
-# provision_run(['user1', 'user2'], '/path/to/run', '{"param": "value"}', 8000, 9000, 'example.com')
+# provision_run(['user1', 'user2'], '/path/to/run', '{"param": "value"}', 8000, 'example.com')

@@ -2,10 +2,11 @@
 
 from typing import Callable
 
-from nvflare.apis.controller_spec import TaskCompletionStatus
+from nvflare.apis.client import Client
+from nvflare.apis.controller_spec import ClientTask, Task, TaskCompletionStatus
 from nvflare.apis.fl_constant import ReturnCode
 from nvflare.apis.fl_context import FLContext
-from nvflare.apis.impl.controller import ClientTask, Controller, Task
+from nvflare.apis.impl.controller import Controller
 from nvflare.apis.shareable import Shareable
 from nvflare.apis.signal import Signal
 
@@ -185,7 +186,14 @@ class ComputationController(Controller):
                 f"'{task.completion_status}'{detail}"
             )
 
-    def process_result_of_unknown_task(self, task: Task, fl_ctx: FLContext) -> None:
+    def process_result_of_unknown_task(
+        self,
+        client: Client,
+        task_name: str,
+        client_task_id: str,
+        result: Shareable,
+        fl_ctx: FLContext,
+    ) -> None:
         """Ignore results for tasks no longer owned by this controller."""
         pass
 

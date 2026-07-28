@@ -26,7 +26,12 @@ def create_job(app_path: str, job_path: str, min_clients: int) -> None:
     os.makedirs(job_app_path, exist_ok=True)
 
     # Copy the app directory
-    shutil.copytree(app_path, job_app_path, dirs_exist_ok=True)
+    shutil.copytree(
+        app_path,
+        job_app_path,
+        dirs_exist_ok=True,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
+    )
     update_client_tasks_from_spec(job_app_path)
 
     # Generate and write job_meta to meta.json
@@ -42,11 +47,14 @@ def create_job(app_path: str, job_path: str, min_clients: int) -> None:
 def update_client_tasks_from_spec(app_path: str) -> None:
     """Populate client task names from the computation specification."""
     code_path = os.path.join(app_path, "code")
+    previous_dont_write_bytecode = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
     sys.path.insert(0, code_path)
     try:
         from computation.spec import SPEC
         from framework.workflow import get_task_names
     finally:
+        sys.dont_write_bytecode = previous_dont_write_bytecode
         if sys.path and sys.path[0] == code_path:
             sys.path.pop(0)
 

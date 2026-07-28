@@ -90,6 +90,24 @@ def load_computation_parameters(provision_input: dict) -> dict:
     return parameters
 
 
+def validate_network_config(provision_input: dict) -> tuple[int, str]:
+    """Validate the NVFlare 2.8 single-port server configuration."""
+    if "admin_port" in provision_input:
+        raise ValueError(
+            "Provision input 'admin_port' was removed; NVFlare 2.8 uses "
+            "'fed_learn_port' for both federation and administration"
+        )
+    fed_learn_port = provision_input.get("fed_learn_port")
+    if isinstance(fed_learn_port, bool) or not isinstance(fed_learn_port, int):
+        raise ValueError("Provision input must include integer 'fed_learn_port'")
+    if not 1 <= fed_learn_port <= 65535:
+        raise ValueError("Provision input 'fed_learn_port' must be between 1 and 65535")
+    host_identifier = provision_input.get("host_identifier")
+    if not isinstance(host_identifier, str) or not host_identifier.strip():
+        raise ValueError("Provision input must include non-empty 'host_identifier'")
+    return fed_learn_port, host_identifier
+
+
 def main():
     """Provision the computation from command-line input."""
     # Set up argument parser
@@ -114,15 +132,12 @@ def main():
     computation_parameters_dict = load_computation_parameters(provision_input)
     computation_parameters_dict["site_id_name_map"] = site_id_name_map
     computation_parameters = json.dumps(computation_parameters_dict)
-    fed_learn_port = provision_input.get("fed_learn_port")
-    admin_port = provision_input.get("admin_port")
-    host_identifier = provision_input.get("host_identifier")
+    fed_learn_port, host_identifier = validate_network_config(provision_input)
 
     print(f"user_ids: {user_ids}")
     print(f"path_run: {path_run}")
     print(f"computation_parameters: {computation_parameters}")
     print(f"fed_learn_port: {fed_learn_port}")
-    print(f"admin_port: {admin_port}")
     print(f"host_identifier: {host_identifier}")
 
     # Call the provision_run function with the loaded arguments
@@ -132,7 +147,6 @@ def main():
         path_app="/workspace/app",
         computation_parameters=computation_parameters,
         fed_learn_port=fed_learn_port,
-        admin_port=admin_port,
         host_identifier=host_identifier,
     )
 

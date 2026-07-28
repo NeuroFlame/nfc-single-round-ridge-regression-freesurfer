@@ -13,7 +13,6 @@ def generate_project_file(
     project_name: str,
     host_identifier: str,
     fed_learn_port: int,
-    admin_port: int,
     output_file_path: str,
     site_names: List[str],
 ) -> None:
@@ -27,7 +26,6 @@ def generate_project_file(
                 "name": host_identifier,
                 "org": "nvidia",
                 "type": "server",
-                "admin_port": admin_port,
                 "fed_learn_port": fed_learn_port,
             },
             {
@@ -53,19 +51,9 @@ def generate_project_file(
                 },
             },
             {
-                "path": "nvflare.lighter.impl.template.TemplateBuilder",
-            },
-            {
                 "path": "nvflare.lighter.impl.static_file.StaticFileBuilder",
                 "args": {
                     "config_folder": "config",
-                    "overseer_agent": {
-                        "path": "nvflare.ha.dummy_overseer_agent.DummyOverseerAgent",
-                        "overseer_exists": False,
-                        "args": {
-                            "sp_end_point": f"{host_identifier}:{fed_learn_port}:{admin_port}",
-                        },
-                    },
                 },
             },
             {"path": "nvflare.lighter.impl.cert.CertBuilder"},
@@ -88,4 +76,4 @@ def generate_project_file(
 
 
 # Example usage:
-# generate_project_file("MyProject", "example.com", 8000, 9000, "output.yaml", ["site1", "site2"])
+# generate_project_file("MyProject", "example.com", 8000, "output.yaml", ["site1", "site2"])

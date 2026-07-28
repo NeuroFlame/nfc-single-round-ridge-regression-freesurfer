@@ -1,5 +1,8 @@
 ### Computation Description
 
+The federated runtime targets NVFlare 2.8.0 and Python 3.11 while computation
+authors remain isolated from NVFlare-specific APIs.
+
 #### Overview
 This computation performs a ridge regression on the merged datasets with freesurfer modality from multiple sites using specified covariates and dependent variables. This computation is designed to run within a federated learning environment, where each site performs a local regression analysis, and then global results are aggregated.
 

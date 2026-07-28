@@ -1,9 +1,9 @@
-PYTHON ?= python3
+PYTHON ?= python3.11
 VENV ?= .venv
 VENV_PYTHON := $(VENV)/bin/python
 RUFF := $(VENV)/bin/ruff
 
-.PHONY: setup-dev lint lint-author format format-author format-check check clean-dev
+.PHONY: setup-dev lint lint-author format format-author format-check compile check clean-dev
 
 setup-dev: $(RUFF)
 
@@ -29,7 +29,10 @@ format-author: $(RUFF)
 format-check: $(RUFF)
 	$(RUFF) format --check .
 
-check: lint format-check
+compile: $(RUFF)
+	PYTHONPATH=app/code $(VENV_PYTHON) -m compileall -q app system debugger.py makeJob.py
+
+check: lint format-check compile
 
 clean-dev:
 	rm -rf $(VENV) .ruff_cache

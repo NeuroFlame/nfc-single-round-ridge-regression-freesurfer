@@ -170,7 +170,7 @@ def aggregate_final_results(
 
 
 def _zip_records(columns, *series_values):
-    dataframe = pd.DataFrame(list(zip(*series_values)), columns=columns)
+    dataframe = pd.DataFrame(list(zip(*series_values, strict=False)), columns=columns)
     return dataframe.to_dict(orient="records")
 
 
