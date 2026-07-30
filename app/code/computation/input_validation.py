@@ -9,6 +9,66 @@ import pandas as pd
 from . import constants
 
 
+def _normalize_column_name(column_name: str) -> str:
+    """Normalize a CSV column name for compatibility matching."""
+    return column_name.strip().lower()
+
+
+def _build_normalized_column_map(
+    columns, file_label: str, logger: Logger
+) -> Dict[str, str]:
+    """Map normalized headers to originals, rejecting ambiguous duplicates."""
+    normalized_column_map = {}
+
+    for column in columns:
+        normalized_column = _normalize_column_name(str(column))
+        if normalized_column in normalized_column_map:
+            error_message = (
+                f"{file_label} contains duplicate headers after normalization: "
+                f"'{normalized_column_map[normalized_column]}' and '{column}'."
+            )
+            logger.info(error_message)
+            raise ValueError(error_message)
+
+        normalized_column_map[normalized_column] = column
+
+    return normalized_column_map
+
+
+def _select_columns_case_insensitive(
+    dataframe: pd.DataFrame,
+    expected_columns: list,
+    file_label: str,
+    logger: Logger,
+) -> pd.DataFrame:
+    """Select configured columns case-insensitively and restore canonical names."""
+    normalized_column_map = _build_normalized_column_map(
+        dataframe.columns, file_label, logger
+    )
+    missing_columns = [
+        column
+        for column in expected_columns
+        if _normalize_column_name(column) not in normalized_column_map
+    ]
+
+    if missing_columns:
+        error_message = (
+            f"{file_label} headers do not contain all expected headers. Expected at "
+            f"least {expected_columns}, but got {set(dataframe.columns)}."
+        )
+        logger.info(error_message)
+        raise ValueError(error_message)
+
+    actual_columns = [
+        normalized_column_map[_normalize_column_name(column)]
+        for column in expected_columns
+    ]
+    selected_dataframe = dataframe[actual_columns].copy()
+    selected_dataframe.columns = expected_columns
+
+    return selected_dataframe
+
+
 def validate_and_get_inputs(
     covariates_path: str,
     data_path: str,
@@ -46,28 +106,12 @@ def validate_and_get_inputs(
         covariates = pd.read_csv(covariates_path)
         data = pd.read_csv(data_path)
 
-        # Validate covariates headers
-        covariates_headers = set(covariates.columns)
-        if not set(expected_covariates).issubset(covariates_headers):
-            error_message = (
-                f"Covariates headers do not contain all expected headers. Expected at least "
-                f"{expected_covariates}, but got {covariates_headers}."
-            )
-            logger.info(error_message)
-            return False, None, None
-
-        # Validate data headers
-        data_headers = set(data.columns)
-        if not set(expected_dependents).issubset(data_headers):
-            error_message = (
-                f"Data headers do not contain all expected headers. Expected at least "
-                f"{expected_dependents}, but got {data_headers}."
-            )
-            logger.info(error_message)
-            return False, None, None
-
-        covariates = covariates[expected_covariates]
-        data = data[expected_dependents]
+        covariates = _select_columns_case_insensitive(
+            covariates, expected_covariates, "Covariates", logger
+        )
+        data = _select_columns_case_insensitive(
+            data, expected_dependents, "Data", logger
+        )
 
         logger.info(
             f"-- Checking covariate and dependent files : {str(covariates_path)}, {str(data_path)}"

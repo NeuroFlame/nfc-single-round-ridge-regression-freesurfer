@@ -91,11 +91,11 @@ def load_computation_parameters(provision_input: dict) -> dict:
 
 
 def validate_network_config(provision_input: dict) -> tuple[int, str]:
-    """Validate the NVFlare 2.8 single-port server configuration."""
+    """Validate NeuroFLAME's single-port NVFlare server configuration."""
     if "admin_port" in provision_input:
         raise ValueError(
-            "Provision input 'admin_port' was removed; NVFlare 2.8 uses "
-            "'fed_learn_port' for both federation and administration"
+            "Provision input 'admin_port' is not supported by NeuroFLAME's "
+            "single-port provisioning contract; omit it"
         )
     fed_learn_port = provision_input.get("fed_learn_port")
     if isinstance(fed_learn_port, bool) or not isinstance(fed_learn_port, int):
