@@ -30,7 +30,7 @@ format-check: $(RUFF)
 	$(RUFF) format --check .
 
 compile: $(RUFF)
-	PYTHONPATH=app/code $(VENV_PYTHON) -m compileall -q app system tests debugger.py makeJob.py
+	PYTHONPATH=app/code $(VENV_PYTHON) -m compileall -q app system scripts tests debugger.py makeJob.py
 
 test: $(RUFF)
 	PYTHONPATH=app/code $(VENV_PYTHON) -m unittest discover -s tests
