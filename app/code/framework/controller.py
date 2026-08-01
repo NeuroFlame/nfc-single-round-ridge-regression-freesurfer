@@ -10,7 +10,14 @@ from nvflare.apis.impl.controller import Controller
 from nvflare.apis.shareable import Shareable
 from nvflare.apis.signal import Signal
 
-from .errors import clear_terminal_error, record_terminal_error
+from .errors import (
+    ERROR_ENVELOPE_KEY,
+    ERROR_ORIGIN_CENTRAL,
+    ERROR_ORIGIN_SITE,
+    clear_terminal_error,
+    parse_error_envelope,
+    record_terminal_error,
+)
 from .shared import load_computation_parameters, resolve_output_directory
 from .types import (
     ITERATION_INDEX_KEY,
@@ -21,6 +28,10 @@ from .types import (
 )
 
 _AGGREGATOR_COMPONENT_ID = "aggregator"
+
+
+class RelayedSiteFailure(RuntimeError):
+    """Represent a site failure relayed through the central controller."""
 
 
 class ComputationController(Controller):
@@ -55,7 +66,13 @@ class ComputationController(Controller):
                 sticky=True,
             )
         except Exception as error:
-            record_terminal_error(output_dir, "controller startup", error)
+            record_terminal_error(
+                output_dir,
+                "controller startup",
+                error,
+                origin=ERROR_ORIGIN_CENTRAL,
+                stage="controller_startup",
+            )
             raise
 
     def control_flow(self, abort_signal: Signal, fl_ctx: FLContext) -> None:
@@ -70,10 +87,13 @@ class ComputationController(Controller):
                 return
             raise ValueError(f"Unsupported workflow type: {type(workflow)!r}")
         except Exception as error:
+            is_site_failure = isinstance(error, RelayedSiteFailure)
             record_terminal_error(
                 resolve_output_directory(fl_ctx),
                 "controller",
                 error,
+                origin=(ERROR_ORIGIN_SITE if is_site_failure else ERROR_ORIGIN_CENTRAL),
+                stage="site_result" if is_site_failure else "controller_execution",
             )
             raise
 
@@ -150,7 +170,15 @@ class ComputationController(Controller):
     def _validate_site_result(self, client_task: ClientTask, fl_ctx: FLContext) -> bool:
         return_code = client_task.result.get_return_code()
         if return_code != ReturnCode.OK:
-            raise RuntimeError(
+            error_envelope = parse_error_envelope(
+                client_task.result.get(ERROR_ENVELOPE_KEY)
+            )
+            error_type = (
+                RelayedSiteFailure
+                if error_envelope and error_envelope["origin"] == ERROR_ORIGIN_SITE
+                else RuntimeError
+            )
+            raise error_type(
                 f"Task '{client_task.task.name}' failed on site "
                 f"'{client_task.client.name}' with return code '{return_code}'"
             )
@@ -180,6 +208,8 @@ class ComputationController(Controller):
         )
         if task.completion_status != TaskCompletionStatus.OK:
             task_exception = getattr(task, "exception", None)
+            if isinstance(task_exception, RelayedSiteFailure):
+                raise task_exception
             detail = f": {task_exception}" if task_exception else ""
             raise RuntimeError(
                 f"Task '{task_name}' ended with status "

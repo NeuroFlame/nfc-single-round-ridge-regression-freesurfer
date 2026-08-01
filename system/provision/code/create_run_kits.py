@@ -51,6 +51,7 @@ def create_run_kits(
             logger.info(f"Copying {source_path} to {destination_path}")
             copy_directory(source_path, destination_path)
             extend_component_allow_list(destination_path, _CLIENT_RUNTIME_CLASSES)
+            write_computation_parameters(destination_path, computation_parameters)
 
         # Create the central node runKit
         central_node_path = os.path.join(output_directory, "centralNode")
@@ -78,11 +79,7 @@ def create_run_kits(
             f"Copied admin startup kit from {admin_startup_kit_path} to {central_node_path}/admin"
         )
 
-        # Create or modify computationParameters.json within the central node's runKit
-        parameters_path = os.path.join(central_node_path, "parameters.json")
-        with open(parameters_path, "w", encoding="utf-8") as f:
-            f.write(computation_parameters)
-        logger.info(f"Created computation parameters at {parameters_path}")
+        write_computation_parameters(central_node_path, computation_parameters)
 
         logger.info("RunKits created successfully.")
     except Exception as error:
@@ -98,6 +95,14 @@ def copy_directory(src: str, dest: str) -> None:
         logger.info(f"Removed existing directory at {dest}")
     shutil.copytree(src, dest)
     logger.info(f"Copied directory from {src} to {dest}")
+
+
+def write_computation_parameters(kit_path: str, computation_parameters: str) -> None:
+    """Write the shared computation parameters into a server or client run kit."""
+    parameters_path = os.path.join(kit_path, "parameters.json")
+    with open(parameters_path, "w", encoding="utf-8") as parameters_file:
+        parameters_file.write(computation_parameters)
+    logger.info(f"Created computation parameters at {parameters_path}")
 
 
 def extend_component_allow_list(kit_path: str, class_paths: tuple[str, ...]) -> None:

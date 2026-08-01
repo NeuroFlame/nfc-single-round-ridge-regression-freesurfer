@@ -8,7 +8,7 @@ from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable
 from nvflare.app_common.abstract.aggregator import Aggregator
 
-from .errors import record_terminal_error
+from .errors import ERROR_ORIGIN_CENTRAL, record_terminal_error
 from .logger import close_computation_logger
 from .serialization import deserialize_value, serialize_value
 from .shared import (
@@ -129,6 +129,8 @@ class ComputationAggregator(Aggregator):
                 runtime.output_dir,
                 f"remote round {current_round}",
                 error,
+                origin=ERROR_ORIGIN_CENTRAL,
+                stage="aggregation",
             )
             if runtime.logger:
                 runtime.logger.critical(

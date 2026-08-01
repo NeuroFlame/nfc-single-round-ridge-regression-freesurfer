@@ -22,6 +22,11 @@ def load_ridge_inputs(data_dir, parameters, logger) -> RidgeInputs:
 def load_inputs(covariates_path, data_path, parameters, logger) -> RidgeInputs:
     """Validate input files and build the local ridge input object."""
     logger.info(f"Computation parameters received: {parameters}")
+    for required_section in ("Covariates", "Dependents"):
+        if required_section not in parameters:
+            raise ValueError(
+                f"Missing required computation parameter '{required_section}'"
+            )
     is_valid, covariates, data = iv.validate_and_get_inputs(
         covariates_path,
         data_path,

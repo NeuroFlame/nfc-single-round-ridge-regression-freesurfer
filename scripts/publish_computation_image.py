@@ -10,7 +10,8 @@ from pathlib import Path
 
 SEMVER = re.compile(r"\d+\.\d+\.\d+")
 REVISION = re.compile(r"[0-9a-f]{7,64}")
-PUSH_DIGEST = re.compile(r"digest:\s+(sha256:[0-9a-f]{64})")
+DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
+PUSH_DIGEST = re.compile(rf"digest:\s+({DIGEST.pattern})")
 REQUIRED_CONFIG_KEYS = ("title", "repository", "floatingTag", "tagPrefix", "source")
 
 
@@ -112,8 +113,27 @@ def _image_tags(config: dict[str, str], version: str, revision: str) -> list[str
     ]
 
 
+def _push_tags(tags: list[str], repository: Path) -> str:
+    """Push image tags and return the registry-reported digest."""
+    digest: str | None = None
+    for tag in tags:
+        output = _run(["docker", "push", tag], repository, capture_output=True)
+        print(output, end="")
+        match = PUSH_DIGEST.search(output)
+        if match:
+            digest = match.group(1)
+    if not digest:
+        raise RuntimeError("Docker push completed without reporting an image digest")
+    return digest
+
+
 def publish(
-    repository: Path, *, revision: str | None, platform: str, push: bool
+    repository: Path,
+    *,
+    revision: str | None,
+    platform: str,
+    push: bool,
+    local: bool,
 ) -> None:
     """Build, inspect, tag, and optionally push a computation image."""
     resolved_revision = _get_revision(repository, revision)
@@ -147,19 +167,23 @@ def publish(
     if any(actual_labels.get(key) != value for key, value in labels.items()):
         raise RuntimeError("Built image does not contain the required metadata labels")
 
+    if local:
+        image_id = _run(
+            ["docker", "image", "inspect", tags[0], "--format", "{{.Id}}"],
+            repository,
+            capture_output=True,
+        ).strip()
+        if not DIGEST.fullmatch(image_id):
+            raise RuntimeError(f"Docker returned an invalid local image ID: {image_id}")
+        print(f"NeuroFLAME local image: {tags[0]}")
+        print(f"Local image ID: {image_id}")
+        return
+
     if not push:
         print(f"Built and validated {tags[0]} without pushing")
         return
 
-    digest: str | None = None
-    for tag in tags:
-        output = _run(["docker", "push", tag], repository, capture_output=True)
-        print(output, end="")
-        match = PUSH_DIGEST.search(output)
-        if match:
-            digest = match.group(1)
-    if not digest:
-        raise RuntimeError("Docker push completed without reporting an image digest")
+    digest = _push_tags(tags, repository)
     print(f"Published immutable image: {config['repository']}@{digest}")
 
 
@@ -170,8 +194,14 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--platform", default="linux/amd64", help="target container platform"
     )
-    parser.add_argument(
+    destination = parser.add_mutually_exclusive_group()
+    destination.add_argument(
         "--no-push", action="store_true", help="build and validate without pushing"
+    )
+    destination.add_argument(
+        "--local",
+        action="store_true",
+        help="build labeled local tags for NeuroFLAME development",
     )
     return parser
 
@@ -184,7 +214,8 @@ def main() -> None:
         repository,
         revision=args.revision,
         platform=args.platform,
-        push=not args.no_push,
+        push=not args.no_push and not args.local,
+        local=args.local,
     )
 
 

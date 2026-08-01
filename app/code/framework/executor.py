@@ -2,12 +2,19 @@
 
 from nvflare.apis.event_type import EventType
 from nvflare.apis.executor import Executor
+from nvflare.apis.fl_constant import ReturnCode
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable
 from nvflare.apis.signal import Signal
 
 from .cache import JsonStateStore
-from .errors import clear_terminal_error, record_terminal_error
+from .errors import (
+    ERROR_ENVELOPE_KEY,
+    ERROR_ORIGIN_SITE,
+    build_error_envelope,
+    clear_terminal_error,
+    record_terminal_error,
+)
 from .logger import close_computation_logger
 from .serialization import deserialize_value, serialize_value
 from .shared import (
@@ -141,14 +148,28 @@ class ComputationExecutor(Executor):
             )
             return outgoing_shareable
         except Exception as error:
-            record_terminal_error(output_dir, f"site task {task_name}", error)
+            scope = f"site task {task_name}"
+            record_terminal_error(
+                output_dir,
+                scope,
+                error,
+                origin=ERROR_ORIGIN_SITE,
+                stage="task_execution",
+            )
             if runtime and runtime.logger:
                 runtime.logger.critical(
                     "Computation task '%s' failed",
                     task_name,
                     exc_info=True,
                 )
-            raise
+            failure = Shareable()
+            failure.set_return_code(ReturnCode.EXECUTION_EXCEPTION)
+            failure[ERROR_ENVELOPE_KEY] = build_error_envelope(
+                ERROR_ORIGIN_SITE,
+                "task_execution",
+                scope,
+            )
+            return failure
         finally:
             if runtime and runtime.logger:
                 close_computation_logger(runtime.logger)

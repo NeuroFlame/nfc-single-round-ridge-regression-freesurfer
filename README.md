@@ -9,6 +9,9 @@ The computation release and exact NeuroFLAME computation API contract are
 recorded in `.neuroflame-computation-version` and
 `.neuroflame-computation-api-version`. `./dockerPush.sh` applies these versions
 as OCI image metadata and publishes floating, release, and Git-revision tags.
+Use `./dockerPush.sh --local` to build all three labeled tags in the local
+Docker image store and print the floating image reference and content-addressed
+image ID used by the NeuroFLAME dev client.
 
 #### Overview
 This computation performs a ridge regression on the merged datasets with freesurfer modality from multiple sites using specified covariates and dependent variables. This computation is designed to run within a federated learning environment, where each site performs a local regression analysis, and then global results are aggregated.

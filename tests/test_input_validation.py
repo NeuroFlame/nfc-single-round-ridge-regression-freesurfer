@@ -8,6 +8,7 @@ from unittest.mock import Mock
 
 import pandas as pd
 from computation.input_validation import validate_and_get_inputs
+from computation.inputs import load_inputs
 
 
 class InputHeaderCompatibilityTests(unittest.TestCase):
@@ -91,6 +92,19 @@ class InputHeaderCompatibilityTests(unittest.TestCase):
                 for call in self.logger.error.call_args_list
             )
         )
+
+    def test_missing_required_parameter_names_the_section(self):
+        """Expose a useful terminal error when run parameters are incomplete."""
+        with self.assertRaisesRegex(
+            ValueError,
+            "Missing required computation parameter 'Dependents'",
+        ):
+            load_inputs(
+                "unused-covariates.csv",
+                "unused-data.csv",
+                {"Covariates": {"age": "float"}},
+                self.logger,
+            )
 
 
 if __name__ == "__main__":
