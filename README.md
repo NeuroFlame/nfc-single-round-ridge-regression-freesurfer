@@ -1,14 +1,11 @@
 ### Computation Description
 
 The federated runtime targets NVFlare 2.8.0 and Python 3.11 while computation
-authors remain isolated from NVFlare-specific APIs.
-Its compatible NeuroFlame boilerplate release is recorded in
-`.neuroflame-boilerplate-version`.
-
-The computation release and exact NeuroFLAME computation API contract are
-recorded in `.neuroflame-computation-version` and
-`.neuroflame-computation-api-version`. `./dockerPush.sh` applies these versions
-as OCI image metadata and publishes floating, release, and Git-revision tags.
+authors remain isolated from NVFlare-specific APIs. `.neuroflame.json` records
+the computation release, compatible NeuroFLAME computation API and boilerplate
+versions, and image publishing destination. `./dockerPush.sh` validates this
+manifest, applies its values as OCI image metadata, and publishes floating,
+release, and Git-revision tags.
 Use `./dockerPush.sh --local` to build all three labeled tags in the local
 Docker image store and print the floating image reference and content-addressed
 image ID used by the NeuroFLAME dev client.

@@ -8,11 +8,14 @@ import re
 import subprocess
 from pathlib import Path
 
-SEMVER = re.compile(r"\d+\.\d+\.\d+")
+if __package__:
+    from .neuroflame_manifest import REQUIRED_IMAGE_KEYS, SEMVER, load_manifest
+else:
+    from neuroflame_manifest import REQUIRED_IMAGE_KEYS, SEMVER, load_manifest
+
 REVISION = re.compile(r"[0-9a-f]{7,64}")
 DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 PUSH_DIGEST = re.compile(rf"digest:\s+({DIGEST.pattern})")
-REQUIRED_CONFIG_KEYS = ("title", "repository", "floatingTag", "tagPrefix", "source")
 
 
 def _run(command: list[str], repository: Path, *, capture_output: bool = False) -> str:
@@ -27,14 +30,6 @@ def _run(command: list[str], repository: Path, *, capture_output: bool = False) 
     return completed.stdout
 
 
-def _read_version(repository: Path, filename: str) -> str:
-    """Read a strict semantic version marker."""
-    value = (repository / filename).read_text(encoding="utf-8").strip()
-    if not SEMVER.fullmatch(value):
-        raise ValueError(f"Invalid semantic version in {filename}: {value!r}")
-    return value
-
-
 def _read_nvflare_version(repository: Path) -> str:
     """Read the exact NVFlare pin from requirements.txt."""
     matches = re.findall(
@@ -44,19 +39,6 @@ def _read_nvflare_version(repository: Path) -> str:
     if len(matches) != 1 or not SEMVER.fullmatch(matches[0]):
         raise ValueError("requirements.txt must contain one exact nvflare==X.Y.Z pin")
     return matches[0]
-
-
-def _read_image_config(repository: Path) -> dict[str, str]:
-    """Load and validate repository-specific image publishing configuration."""
-    raw = json.loads(
-        (repository / ".neuroflame-image.json").read_text(encoding="utf-8")
-    )
-    missing = [key for key in REQUIRED_CONFIG_KEYS if not isinstance(raw.get(key), str)]
-    if missing:
-        raise ValueError(f"Missing image configuration keys: {', '.join(missing)}")
-    if any(not raw[key].strip() for key in REQUIRED_CONFIG_KEYS if key != "tagPrefix"):
-        raise ValueError("Image configuration values must not be empty")
-    return {key: raw[key].strip() for key in REQUIRED_CONFIG_KEYS}
 
 
 def _get_revision(repository: Path, requested_revision: str | None) -> str:
@@ -83,20 +65,19 @@ def build_labels(
     repository: Path, revision: str
 ) -> tuple[dict[str, str], dict[str, str]]:
     """Build the canonical labels and return them with image configuration."""
-    config = _read_image_config(repository)
+    manifest = load_manifest(repository)
+    config = {key: manifest["image"][key].strip() for key in REQUIRED_IMAGE_KEYS}
     labels = {
         "org.opencontainers.image.title": config["title"],
-        "org.opencontainers.image.version": _read_version(
-            repository, ".neuroflame-computation-version"
-        ),
+        "org.opencontainers.image.version": manifest["computation"]["version"],
         "org.opencontainers.image.revision": revision,
         "org.opencontainers.image.source": config["source"],
-        "org.neuroflame.computation-api.version": _read_version(
-            repository, ".neuroflame-computation-api-version"
-        ),
-        "org.neuroflame.boilerplate.version": _read_version(
-            repository, ".neuroflame-boilerplate-version"
-        ),
+        "org.neuroflame.computation-api.version": manifest["compatibility"][
+            "computationApiVersion"
+        ],
+        "org.neuroflame.boilerplate.version": manifest["compatibility"][
+            "boilerplateVersion"
+        ],
         "org.neuroflame.nvflare.version": _read_nvflare_version(repository),
     }
     return labels, config
