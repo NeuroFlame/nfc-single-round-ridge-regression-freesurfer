@@ -1,4 +1,4 @@
-"""Provision startup and run kits from a NeuroFlame request."""
+"""Generate run-specific NVFlare startup and job kits."""
 
 import argparse
 import json
@@ -19,7 +19,7 @@ logging.basicConfig(
 
 
 def load_provision_input(provision_input_path: str) -> dict:
-    """Load a provisioning request from JSON."""
+    """Load the platform-provided provisioning input JSON."""
     try:
         with open(provision_input_path, "r") as file:
             provision_input = json.load(file)
@@ -31,7 +31,7 @@ def load_provision_input(provision_input_path: str) -> dict:
 
 
 def validate_users(provision_input: dict) -> tuple:
-    """Validate users and return site identifiers and display-name mappings."""
+    """Validate site identities and build their display-name mapping."""
     users = provision_input.get("users")
     if not isinstance(users, list) or not users:
         raise ValueError("Provision input must include a non-empty 'users' list")
@@ -67,7 +67,7 @@ def validate_users(provision_input: dict) -> tuple:
 
 
 def load_computation_parameters(provision_input: dict) -> dict:
-    """Decode computation parameters from a provisioning request."""
+    """Normalize computation parameters into a JSON-object dictionary."""
     raw_parameters = provision_input.get("computation_parameters") or "{}"
     if isinstance(raw_parameters, dict):
         return dict(raw_parameters)
@@ -109,7 +109,7 @@ def validate_network_config(provision_input: dict) -> tuple[int, str]:
 
 
 def main():
-    """Provision the computation from command-line input."""
+    """Parse provisioning input and generate all run kits."""
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Run provisioning script")
 

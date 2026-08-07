@@ -1,1 +1,1 @@
-"""Provisioning helpers for NeuroFlame computations."""
+"""Helpers for generating run-specific NVFlare kits."""

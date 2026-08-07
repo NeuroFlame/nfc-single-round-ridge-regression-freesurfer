@@ -139,13 +139,13 @@ class _Serializer:
             return None
         if isinstance(value, ArtifactRef):
             raise TypeError(
-                "ArtifactRef transport is not implemented yet; artifact values cannot be "
-                "included in a computation payload"
+                "ArtifactRef values must be returned from a computation step so the "
+                "framework can stage them before serialization"
             )
         if isinstance(value, (os.PathLike, io.IOBase)):
             raise TypeError(
                 f"Files and paths ({type(value).__name__}) are not inline computation data. "
-                "Use ArtifactRef/file transfer support when it becomes available."
+                "Return an ArtifactRef created with framework.artifact() instead."
             )
         if isinstance(value, (bytes, bytearray, memoryview)):
             raise TypeError(

@@ -1,4 +1,4 @@
-"""Create a deployable NVFlare job from the computation application."""
+"""Create an NVFlare job bundle from the computation application."""
 
 import json
 import os
@@ -8,7 +8,7 @@ from typing import Any, Dict
 
 
 def generate_job_meta(min_clients: int) -> Dict[str, Any]:
-    """Build NVFlare job metadata for the requested client count."""
+    """Build job metadata for deployment to all participants."""
     return {
         "resource_spec": {},
         "min_clients": min_clients,
@@ -45,7 +45,7 @@ def create_job(app_path: str, job_path: str, min_clients: int) -> None:
 
 
 def update_client_tasks_from_spec(app_path: str) -> None:
-    """Populate client task names from the computation specification."""
+    """Populate client task names from the application's computation spec."""
     code_path = os.path.join(app_path, "code")
     previous_dont_write_bytecode = sys.dont_write_bytecode
     sys.dont_write_bytecode = True

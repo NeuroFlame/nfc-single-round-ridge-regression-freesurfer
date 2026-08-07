@@ -1,4 +1,4 @@
-"""Orchestrate NVFlare provisioning and run-kit assembly."""
+"""Orchestrate project generation, provisioning, and run-kit assembly."""
 
 import logging
 import os
@@ -20,7 +20,7 @@ def provision_run(
     fed_learn_port: int,
     host_identifier: str,
 ) -> None:
-    """Create startup and run kits for a computation request."""
+    """Generate all startup and job artifacts needed for one run."""
     # Configurable variables
     admin_name = "admin@admin.com"
 
@@ -59,7 +59,7 @@ def provision_run(
 
 
 def ensure_directory_exists(directory_path: str) -> None:
-    """Create a directory when it does not already exist."""
+    """Create a required provisioning directory when absent."""
     try:
         os.makedirs(directory_path, exist_ok=True)
         logger.info(f"Directory ensured: {directory_path}")

@@ -1,4 +1,4 @@
-"""Package provisioned run kits for distribution."""
+"""Package participant run kits for platform distribution."""
 
 import logging
 import os
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 def prepare_hosting_directory(
     source_dir: str, target_dir: str, exclude: List[str]
 ) -> None:
-    """Archive each non-excluded run-kit directory for hosting."""
+    """Zip each non-excluded run-kit directory for hosting."""
     # Ensure target_dir exists
     os.makedirs(target_dir, exist_ok=True)
 
@@ -29,7 +29,7 @@ def prepare_hosting_directory(
 
 
 def create_zip_from_folder(source_folder: str, output_zip_path: str) -> None:
-    """Create a zip archive containing one run-kit directory."""
+    """Create a relative-path zip archive from one run-kit directory."""
     with zipfile.ZipFile(output_zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
         for root, _dirs, files in os.walk(source_folder):
             for file in files:
