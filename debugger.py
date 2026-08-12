@@ -1,4 +1,4 @@
-"""Run a generated ridge job with the NVFlare simulator CLI."""
+"""Run an NVFlare simulation and surface recorded computation failures."""
 
 import argparse
 import json
@@ -8,11 +8,11 @@ import sys
 
 from framework.errors import raise_for_terminal_errors
 
-_SIMULATOR_ALLOWED_CLASS_PREFIXES = ("nvflare.", "runtime.")
+_SIMULATOR_ALLOWED_CLASS_PREFIXES = ("nvflare.", "runtime.", "framework.")
 
 
 def define_simulator_parser(simulator_parser):
-    """Add NVFlare simulator options to an argument parser."""
+    """Add supported simulation arguments to an argument parser."""
     simulator_parser.add_argument("job_folder")
     simulator_parser.add_argument(
         "-w", "--workspace", type=str, help="WORKSPACE folder"
@@ -82,7 +82,7 @@ def configure_simulator_authorization(workspace):
 
 
 def run_simulator(simulator_args):
-    """Run the simulator and raise any recorded terminal computation error."""
+    """Run a simulation and raise any terminal computation failures."""
     configure_simulator_authorization(simulator_args.workspace)
     completed_process = subprocess.run(
         build_simulator_command(simulator_args),
@@ -94,18 +94,10 @@ def run_simulator(simulator_args):
         "simulate_job",
     )
     raise_for_terminal_errors(result_root)
-
     return completed_process.returncode
 
 
 if __name__ == "__main__":
-    """
-    Run the generated job with the NVFlare simulator CLI.
-
-    Example arguments:
-        ./job -w ./simulator_workspace -n 2 -c site1,site2
-    """
-
     if sys.version_info < (3, 10):
         raise RuntimeError("Please use Python 3.10 or above.")
 

@@ -10,6 +10,7 @@ from nvflare.apis.impl.controller import Controller
 from nvflare.apis.shareable import Shareable
 from nvflare.apis.signal import Signal
 
+from .artifact_transfer import ArtifactTransferError
 from .errors import (
     ERROR_ENVELOPE_KEY,
     ERROR_ORIGIN_CENTRAL,
@@ -160,7 +161,14 @@ class ComputationController(Controller):
 
     def _accept_site_result(self, client_task: ClientTask, fl_ctx: FLContext) -> bool:
         self._validate_site_result(client_task, fl_ctx)
-        if not self.aggregator.accept(client_task.result, fl_ctx):
+        try:
+            accepted = self.aggregator.accept(client_task.result, fl_ctx)
+        except ArtifactTransferError as error:
+            raise RelayedSiteFailure(
+                f"Artifact transfer for task '{client_task.task.name}' failed from "
+                f"site '{client_task.client.name}'"
+            ) from error
+        if not accepted:
             raise RuntimeError(
                 f"Task '{client_task.task.name}' returned an invalid result from "
                 f"site '{client_task.client.name}'"

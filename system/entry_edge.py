@@ -6,7 +6,7 @@ import subprocess
 from types import FrameType
 from typing import Optional
 
-from framework.errors import raise_for_terminal_errors
+from framework.errors import emit_shared_error_summary, raise_for_terminal_errors
 
 STARTUP_SCRIPT_PATH = "/workspace/runKit/startup/sub_start.sh"
 FORWARDED_SIGNALS = (signal.SIGTERM, signal.SIGINT)
@@ -38,7 +38,22 @@ def _run_client_once() -> subprocess.CompletedProcess:
 def main():
     """Run the edge startup process and preserve its exit status."""
     completed_process = _run_client_once()
-    raise_for_terminal_errors(os.getenv("OUTPUT_DIR", "/workspace/output"))
+    output_dir = os.getenv("OUTPUT_DIR", "/workspace/output")
+    try:
+        raise_for_terminal_errors(output_dir)
+    except Exception:
+        emit_shared_error_summary(
+            output_dir,
+            fallback_origin="site",
+            fallback_stage="execution",
+        )
+        raise
+    if completed_process.returncode:
+        emit_shared_error_summary(
+            output_dir,
+            fallback_origin="site",
+            fallback_stage="execution",
+        )
     completed_process.check_returncode()
 
 

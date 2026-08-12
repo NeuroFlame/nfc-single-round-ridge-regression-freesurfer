@@ -1,6 +1,7 @@
 """Build shared runtime values used by framework components."""
 
 import json
+import os
 from typing import Any, Dict
 
 from nvflare.apis.fl_constant import FLContextKey
@@ -63,11 +64,20 @@ def build_runtime_context(
         f"{client_name}{logger_suffix}",
         parameters,
     )
+    artifact_dir = os.path.join(
+        output_dir,
+        ".artifacts",
+        "author",
+        f"round-{current_round}",
+    )
+    os.makedirs(artifact_dir, mode=0o700, exist_ok=True)
+    os.chmod(artifact_dir, 0o700)
 
     return RuntimeContext(
         fl_ctx=fl_ctx,
         data_dir=data_dir,
         output_dir=output_dir,
+        artifact_dir=artifact_dir,
         current_round=current_round,
         logger=logger,
         max_inline_array_bytes=spec.max_inline_array_bytes,

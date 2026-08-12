@@ -6,6 +6,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Union
 
+from .artifacts import (
+    DEFAULT_ARTIFACT_RETRIES,
+    DEFAULT_ARTIFACT_TIMEOUT,
+    DEFAULT_MAX_ARTIFACT_BYTES,
+    DEFAULT_MAX_ARTIFACT_TOTAL_BYTES,
+)
 from .serialization import DEFAULT_MAX_INLINE_ARRAY_BYTES
 
 ITERATION_INDEX_KEY = "__neuroflame_iteration__"
@@ -19,6 +25,7 @@ class RuntimeContext:
     fl_ctx: Any
     data_dir: str
     output_dir: str
+    artifact_dir: str
     current_round: int
     logger: Any = None
     max_inline_array_bytes: int = DEFAULT_MAX_INLINE_ARRAY_BYTES
@@ -81,6 +88,10 @@ class ComputationSpec:
     workflow: WorkflowDefinition
     codecs: Dict[type, Any] = field(default_factory=dict)
     max_inline_array_bytes: int = DEFAULT_MAX_INLINE_ARRAY_BYTES
+    max_artifact_bytes: int = DEFAULT_MAX_ARTIFACT_BYTES
+    max_artifact_total_bytes: int = DEFAULT_MAX_ARTIFACT_TOTAL_BYTES
+    artifact_timeout: float = DEFAULT_ARTIFACT_TIMEOUT
+    artifact_retries: int = DEFAULT_ARTIFACT_RETRIES
 
     def __init__(
         self,
@@ -88,6 +99,10 @@ class ComputationSpec:
         *,
         codecs: Optional[Mapping] = None,
         max_inline_array_bytes: int = DEFAULT_MAX_INLINE_ARRAY_BYTES,
+        max_artifact_bytes: int = DEFAULT_MAX_ARTIFACT_BYTES,
+        max_artifact_total_bytes: int = DEFAULT_MAX_ARTIFACT_TOTAL_BYTES,
+        artifact_timeout: float = DEFAULT_ARTIFACT_TIMEOUT,
+        artifact_retries: int = DEFAULT_ARTIFACT_RETRIES,
     ):
         """Validate and store workflow and serialization options."""
         if not isinstance(workflow, (SteppedWorkflow, IterativeWorkflow)):
@@ -116,6 +131,30 @@ class ComputationSpec:
         if max_inline_array_bytes < 0:
             raise ValueError("max_inline_array_bytes cannot be negative")
 
+        for field_name, field_value in (
+            ("max_artifact_bytes", max_artifact_bytes),
+            ("max_artifact_total_bytes", max_artifact_total_bytes),
+            ("artifact_retries", artifact_retries),
+        ):
+            if isinstance(field_value, bool) or not isinstance(field_value, int):
+                raise TypeError(f"{field_name} must be an integer")
+            if field_value < 0:
+                raise ValueError(f"{field_name} cannot be negative")
+        if max_artifact_total_bytes < max_artifact_bytes:
+            raise ValueError(
+                "max_artifact_total_bytes cannot be smaller than max_artifact_bytes"
+            )
+        if isinstance(artifact_timeout, bool) or not isinstance(
+            artifact_timeout, (int, float)
+        ):
+            raise TypeError("artifact_timeout must be a number")
+        if artifact_timeout <= 0:
+            raise ValueError("artifact_timeout must be positive")
+
         self.workflow = workflow
         self.codecs = resolved_codecs
         self.max_inline_array_bytes = max_inline_array_bytes
+        self.max_artifact_bytes = max_artifact_bytes
+        self.max_artifact_total_bytes = max_artifact_total_bytes
+        self.artifact_timeout = float(artifact_timeout)
+        self.artifact_retries = artifact_retries

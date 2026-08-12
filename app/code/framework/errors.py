@@ -6,6 +6,19 @@ import traceback
 from typing import Any, Dict, List
 
 TERMINAL_ERROR_FILE_NAME = ".neuroflame_error.json"
+SHARED_ERROR_PREFIX = "NEUROFLAME_SHARED_ERROR:"
+SHARED_ERROR_SCHEMA_VERSION = 1
+SHARED_ERROR_CODE_SITE = "participant_computation_failed"
+SHARED_ERROR_CODE_CENTRAL = "central_computation_failed"
+_SHARED_ERROR_STAGES = {"startup", "execution", "aggregation", "transfer"}
+_PUBLIC_STAGE_MAP = {
+    "controller_startup": "startup",
+    "input_validation": "startup",
+    "controller_execution": "execution",
+    "task_execution": "execution",
+    "site_result": "transfer",
+    "aggregation": "aggregation",
+}
 ERROR_ENVELOPE_KEY = "__neuroflame_error__"
 ERROR_SCHEMA_VERSION = 1
 ERROR_ORIGIN_SITE = "site"
@@ -125,3 +138,43 @@ def raise_for_terminal_errors(root_dir: str) -> None:
         error_traceback = error.get("traceback")
         details.append(f"{summary}\n{error_traceback}" if error_traceback else summary)
     raise RuntimeError("Terminal computation failure:\n" + "\n".join(details))
+
+
+def build_shared_error_summary(origin: str, stage: str) -> Dict[str, Any]:
+    """Build the only fixed-schema failure data accepted by orchestration."""
+    if origin not in _VALID_ERROR_ORIGINS:
+        raise ValueError(f"Invalid shared error origin: {origin!r}")
+    if stage not in _SHARED_ERROR_STAGES:
+        raise ValueError(f"Invalid shared error stage: {stage!r}")
+    code = (
+        SHARED_ERROR_CODE_SITE
+        if origin == ERROR_ORIGIN_SITE
+        else SHARED_ERROR_CODE_CENTRAL
+    )
+    return {
+        "schema_version": SHARED_ERROR_SCHEMA_VERSION,
+        "origin": origin,
+        "stage": stage,
+        "code": code,
+    }
+
+
+def emit_shared_error_summary(
+    root_dir: str, *, fallback_origin: str, fallback_stage: str
+) -> None:
+    """Print an allowlisted envelope containing no computation-authored text."""
+    errors = find_terminal_errors(root_dir)
+    if not errors:
+        origin = fallback_origin
+        stage = fallback_stage
+    else:
+        error = errors[0]
+        candidate_origin = error.get("origin")
+        origin = (
+            candidate_origin
+            if candidate_origin in _VALID_ERROR_ORIGINS
+            else fallback_origin
+        )
+        stage = _PUBLIC_STAGE_MAP.get(error.get("stage"), fallback_stage)
+    summary = build_shared_error_summary(origin, stage)
+    print(SHARED_ERROR_PREFIX + json.dumps(summary, sort_keys=True), flush=True)

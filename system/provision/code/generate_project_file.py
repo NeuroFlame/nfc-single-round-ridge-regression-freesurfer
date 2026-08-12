@@ -16,7 +16,7 @@ def generate_project_file(
     output_file_path: str,
     site_names: List[str],
 ) -> None:
-    """Write an NVFlare project file for the server and client sites."""
+    """Write a project YAML file for the server, admin, and sites."""
     # Define the structure of the YAML content according to the provided specifications
     data = {
         "api_version": 3,

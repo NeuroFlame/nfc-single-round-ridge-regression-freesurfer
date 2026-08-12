@@ -42,23 +42,36 @@ def _read_nvflare_version(repository: Path) -> str:
 
 
 def _get_revision(repository: Path, requested_revision: str | None) -> str:
-    """Resolve and validate the image source revision."""
-    revision = (
-        requested_revision
-        or _run(["git", "rev-parse", "HEAD"], repository, capture_output=True).strip()
-    )
-    if not REVISION.fullmatch(revision):
-        raise ValueError(f"Invalid Git revision: {revision!r}")
-    return revision
+    """Return HEAD and reject an override that names another checkout."""
+    head = _run(["git", "rev-parse", "HEAD"], repository, capture_output=True).strip()
+    if not REVISION.fullmatch(head):
+        raise ValueError(f"Invalid Git HEAD revision: {head!r}")
+    if requested_revision is None:
+        return head
+    if not REVISION.fullmatch(requested_revision):
+        raise ValueError(f"Invalid Git revision: {requested_revision!r}")
+    resolved = _run(
+        ["git", "rev-parse", "--verify", f"{requested_revision}^{{commit}}"],
+        repository,
+        capture_output=True,
+    ).strip()
+    if resolved != head:
+        raise ValueError("Requested image revision does not match the current Git HEAD")
+    return head
 
 
 def _ensure_tracked_files_clean(repository: Path) -> None:
     """Reject publication when the labeled revision does not describe the build."""
-    dirty = subprocess.run(
-        ["git", "diff", "--quiet", "HEAD", "--"], cwd=repository, check=False
+    status = _run(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+        repository,
+        capture_output=True,
     )
-    if dirty.returncode != 0:
-        raise ValueError("Refusing to publish with tracked uncommitted changes")
+    if status:
+        raise ValueError(
+            "Refusing to publish when tracked or non-ignored untracked files "
+            "are not represented by the labeled revision"
+        )
 
 
 def build_labels(

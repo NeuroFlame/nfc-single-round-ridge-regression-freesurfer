@@ -61,6 +61,7 @@ _FRAMEWORK_INJECTED_PARAMETER_NAMES = {
     "parameters",
     "data_dir",
     "output_dir",
+    "artifact_dir",
     "logger",
 }
 
@@ -367,6 +368,7 @@ def _invoke_author_callable(
         "parameters": computation_parameters,
         "data_dir": runtime.data_dir,
         "output_dir": runtime.output_dir,
+        "artifact_dir": getattr(runtime, "artifact_dir", ""),
         "logger": runtime.logger,
     }
 

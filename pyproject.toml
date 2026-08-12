@@ -22,6 +22,9 @@ select = [
     "D",
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = ["D", "E402"]
+
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 

@@ -1,4 +1,4 @@
-"""Invoke NVFlare provisioning to create startup kits."""
+"""Invoke NVFlare provisioning to generate participant startup kits."""
 
 import logging
 import os
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_startup_kits(project_file_path: str, output_directory: str) -> None:
-    """Run the NVFlare provision command and stream its output."""
+    """Run the NVFlare provision command and stream its output to logs."""
     provision_command = [
         "nvflare",
         "provision",

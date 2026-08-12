@@ -2,11 +2,18 @@
 
 from nvflare.apis.event_type import EventType
 from nvflare.apis.executor import Executor
-from nvflare.apis.fl_constant import ReturnCode
+from nvflare.apis.fl_constant import ReturnCode, SiteType
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable
 from nvflare.apis.signal import Signal
 
+from .artifact_transfer import (
+    ARTIFACT_MANIFEST_KEY,
+    contains_artifacts,
+    get_artifact_transfer,
+    materialize_incoming_artifacts,
+    prepare_outgoing_artifacts,
+)
 from .cache import JsonStateStore
 from .errors import (
     ERROR_ENVELOPE_KEY,
@@ -106,8 +113,24 @@ class ComputationExecutor(Executor):
             if isinstance(workflow, IterativeWorkflow):
                 current_round = shareable.get(ITERATION_INDEX_KEY, current_round)
             local_state = state_store.load_state(local_state_type)
+            incoming_value = shareable.get("result")
+            incoming_manifests = shareable.get(ARTIFACT_MANIFEST_KEY)
+            if incoming_manifests:
+                incoming_value = materialize_incoming_artifacts(
+                    incoming_value,
+                    incoming_manifests,
+                    transfer=get_artifact_transfer(fl_ctx),
+                    from_site=SiteType.SERVER,
+                    fl_ctx=fl_ctx,
+                    expected_stage=task_name,
+                    expected_direction="central_to_site",
+                    timeout=self.SPEC.artifact_timeout,
+                    retries=self.SPEC.artifact_retries,
+                    max_file_bytes=self.SPEC.max_artifact_bytes,
+                    max_total_bytes=self.SPEC.max_artifact_total_bytes,
+                )
             incoming_payload = deserialize_value(
-                shareable.get("result"),
+                incoming_value,
                 local_input_type,
                 self.SPEC.codecs,
                 max_inline_array_bytes=self.SPEC.max_inline_array_bytes,
@@ -141,11 +164,31 @@ class ComputationExecutor(Executor):
                 return Shareable()
 
             outgoing_shareable = Shareable()
+            outgoing_payload = step_result.payload
+            outgoing_manifests = []
+            if contains_artifacts(outgoing_payload):
+                peer_ctx = fl_ctx.get_peer_context()
+                peer_identity = peer_ctx.get_identity_name() if peer_ctx else None
+                requesters = [SiteType.SERVER]
+                if peer_identity and peer_identity not in requesters:
+                    requesters.append(peer_identity)
+                outgoing_payload, outgoing_manifests = prepare_outgoing_artifacts(
+                    outgoing_payload,
+                    transfer=get_artifact_transfer(fl_ctx),
+                    source_root=runtime.artifact_dir,
+                    allowed_requesters=requesters,
+                    stage=task_name,
+                    direction="site_to_central",
+                    max_file_bytes=self.SPEC.max_artifact_bytes,
+                    max_total_bytes=self.SPEC.max_artifact_total_bytes,
+                )
             outgoing_shareable["result"] = serialize_value(
-                step_result.payload,
+                outgoing_payload,
                 self.SPEC.codecs,
                 max_inline_array_bytes=self.SPEC.max_inline_array_bytes,
             )
+            if outgoing_manifests:
+                outgoing_shareable[ARTIFACT_MANIFEST_KEY] = outgoing_manifests
             return outgoing_shareable
         except Exception as error:
             scope = f"site task {task_name}"

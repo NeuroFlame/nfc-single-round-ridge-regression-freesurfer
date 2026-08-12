@@ -1,7 +1,8 @@
-"""Create an NVFlare job folder for local simulation.
+"""Create an NVFlare simulation job from the computation application.
 
-This script assumes the repository layout and injects ``min_clients`` into the
-workflow configuration. It is not a general-purpose NVFlare job builder.
+High-level script for computation authors to create a job folder for NVFlare simulation.
+This script assumes a specific directory structure and injects min_clients into the workflow config.
+Not intended as a general-purpose NVFlare job creation utility.
 
 Usage (from project root):
     python makeJob.py site1,site2,site3
@@ -26,7 +27,7 @@ CLIENT_CONFIG_SRC = "app/config/config_fed_client.json"
 
 
 def get_spec_task_names():
-    """Return generated task names from the computation specification."""
+    """Load the computation spec and return its generated site task names."""
     code_path = os.path.abspath("app/code")
     sys.path.insert(0, code_path)
     try:
@@ -40,7 +41,7 @@ def get_spec_task_names():
 
 
 def parse_sites_arg(sites_arg):
-    """Parse a comma-separated site argument."""
+    """Parse a comma-separated site list into normalized site names."""
     if " " in sites_arg:
         raise ValueError(
             "Please provide site names as a single comma-separated string, e.g. --sites=site1,site2"
@@ -49,14 +50,14 @@ def parse_sites_arg(sites_arg):
 
 
 def create_job_folder(job_folder):
-    """Create an empty job directory."""
+    """Replace the generated job directory with an empty directory."""
     if os.path.exists(job_folder):
         shutil.rmtree(job_folder)
     os.makedirs(job_folder)
 
 
 def create_server_folder(job_folder):
-    """Create the server job directory and return its configuration path."""
+    """Create the server app directory and copy its configuration."""
     server_app_folder = os.path.join(job_folder, SERVER_FOLDER)
     config_dir = os.path.join(server_app_folder, "config")
     os.makedirs(config_dir)
@@ -66,7 +67,7 @@ def create_server_folder(job_folder):
 
 
 def update_min_clients_in_workflow(config_path, n_sites):
-    """Set the workflow's required client count."""
+    """Set the workflow's minimum-client count in server configuration."""
     with open(config_path, "r+") as f:
         config = json.load(f)
         if "workflows" in config and len(config["workflows"]) > 0:
@@ -79,7 +80,7 @@ def update_min_clients_in_workflow(config_path, n_sites):
 
 
 def update_tasks_in_client_config(config_path, task_names):
-    """Set generated workflow task names in a client configuration."""
+    """Set generated computation task names in client configuration."""
     with open(config_path, "r+") as f:
         config = json.load(f)
         if "executors" in config and len(config["executors"]) > 0:
@@ -90,7 +91,7 @@ def update_tasks_in_client_config(config_path, task_names):
 
 
 def create_client_folders(job_folder, sites, task_names):
-    """Create one configured client directory per selected site."""
+    """Create one configured client app directory for every site."""
     for site in sites:
         client_app_folder = os.path.join(job_folder, site)
         config_dir = os.path.join(client_app_folder, "config")
@@ -101,7 +102,7 @@ def create_client_folders(job_folder, sites, task_names):
 
 
 def create_meta_json(job_folder, job_name, sites):
-    """Write the NVFlare job deployment map."""
+    """Write NVFlare job metadata and its deployment map."""
     meta = {
         "name": job_name,
         "deploy_map": {"server": ["server"], **{site: [site] for site in sites}},
@@ -111,7 +112,7 @@ def create_meta_json(job_folder, job_name, sites):
 
 
 def main():
-    """Build a local NVFlare simulation job from command-line arguments."""
+    """Create a local simulation job from command-line arguments."""
     parser = argparse.ArgumentParser(
         description="Create NVFlare job folder structure and meta.json."
     )
