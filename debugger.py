@@ -1,11 +1,14 @@
-"""Run a generated ridge job with the NVFlare simulator API."""
+"""Run a generated ridge job with the NVFlare simulator CLI."""
 
 import argparse
+import json
 import os
+import subprocess
 import sys
 
 from framework.errors import raise_for_terminal_errors
-from nvflare.private.fed.app.simulator.simulator_runner import SimulatorRunner
+
+_SIMULATOR_ALLOWED_CLASS_PREFIXES = ("nvflare.", "runtime.")
 
 
 def define_simulator_parser(simulator_parser):
@@ -27,20 +30,64 @@ def define_simulator_parser(simulator_parser):
     simulator_parser.add_argument(
         "-m", "--max_clients", type=int, default=100, help="max number of clients"
     )
+    simulator_parser.add_argument(
+        "-l", "--log_config", type=str, help="NVFlare log configuration"
+    )
+    simulator_parser.add_argument("--end_run_for_all", action="store_true")
+
+
+def build_simulator_command(simulator_args):
+    """Build a supported NVFlare 2.8 simulator CLI command."""
+    command = ["nvflare", "simulator", simulator_args.job_folder]
+    optional_values = (
+        ("-w", simulator_args.workspace),
+        ("-n", simulator_args.n_clients),
+        ("-c", simulator_args.clients),
+        ("-t", simulator_args.threads),
+        ("-gpu", simulator_args.gpu),
+        ("-l", simulator_args.log_config),
+        ("-m", simulator_args.max_clients),
+    )
+    for option, value in optional_values:
+        if value is not None:
+            command.extend((option, str(value)))
+    if simulator_args.end_run_for_all:
+        command.append("--end_run_for_all")
+    return command
+
+
+def configure_simulator_authorization(workspace):
+    """Authorize framework-owned components in an NVFlare 2.8 simulator workspace."""
+    workspace_path = os.path.abspath(workspace or "simulator_workspace")
+    local_path = os.path.join(workspace_path, "local")
+    resources_path = os.path.join(local_path, "resources.json")
+    os.makedirs(local_path, exist_ok=True)
+
+    if os.path.exists(resources_path):
+        with open(resources_path, encoding="utf-8") as resources_file:
+            resources = json.load(resources_file)
+    else:
+        resources = {"format_version": 2}
+
+    allow_list = resources.setdefault("class_allow_list", [])
+    if not isinstance(allow_list, list):
+        raise TypeError(f"Invalid class_allow_list in '{resources_path}'")
+    for class_prefix in _SIMULATOR_ALLOWED_CLASS_PREFIXES:
+        if class_prefix not in allow_list:
+            allow_list.append(class_prefix)
+
+    with open(resources_path, "w", encoding="utf-8") as resources_file:
+        json.dump(resources, resources_file, indent=2)
+        resources_file.write("\n")
 
 
 def run_simulator(simulator_args):
     """Run the simulator and raise any recorded terminal computation error."""
-    simulator = SimulatorRunner(
-        job_folder=simulator_args.job_folder,
-        workspace=simulator_args.workspace,
-        clients=simulator_args.clients,
-        n_clients=simulator_args.n_clients,
-        threads=simulator_args.threads,
-        gpu=simulator_args.gpu,
-        max_clients=simulator_args.max_clients,
+    configure_simulator_authorization(simulator_args.workspace)
+    completed_process = subprocess.run(
+        build_simulator_command(simulator_args),
+        check=False,
     )
-    run_status = simulator.run()
     result_root = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "test_output",
@@ -48,19 +95,19 @@ def run_simulator(simulator_args):
     )
     raise_for_terminal_errors(result_root)
 
-    return run_status
+    return completed_process.returncode
 
 
 if __name__ == "__main__":
     """
-    Run the generated job with the NVFlare SimulatorRunner API.
+    Run the generated job with the NVFlare simulator CLI.
 
     Example arguments:
         ./job -w ./simulator_workspace -n 2 -c site1,site2
     """
 
-    if sys.version_info < (3, 7):
-        raise RuntimeError("Please use Python 3.7 or above.")
+    if sys.version_info < (3, 10):
+        raise RuntimeError("Please use Python 3.10 or above.")
 
     parser = argparse.ArgumentParser()
     define_simulator_parser(parser)

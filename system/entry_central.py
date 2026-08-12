@@ -5,7 +5,8 @@ import subprocess
 
 from framework.errors import raise_for_terminal_errors
 from nvflare.apis.job_def import JobMetaKey, RunStatus
-from nvflare.fuel.flare_api.flare_api import Session, new_secure_session
+from nvflare.fuel.flare_api.api_spec import TargetType
+from nvflare.fuel.flare_api.flare_api import new_secure_session
 
 # Path Constants
 STARTUP_SCRIPT_DIRECTORY = "/workspace/runKit/server/startup"
@@ -24,15 +25,6 @@ def start_server():
     )
 
 
-def job_status_callback(
-    session: Session, job_id: str, job_meta, *cb_args, **cb_kwargs
-) -> bool:
-    """Log job status updates while monitoring a submitted job."""
-    job_status = job_meta[JobMetaKey.STATUS.value]
-    print(f"Job status: {job_status}")
-    return True
-
-
 def main():
     """Run the central service and wait for the job to finish."""
     start_server()
@@ -41,21 +33,29 @@ def main():
         ADMIN_DIRECTORY_PATH,
     )
 
+    active_error = None
     try:
         job_id = session.submit_job(JOB_DIRECTORY_PATH)
-        session.monitor_job(
+        job_meta = session.wait_for_job(
             job_id,
             timeout=3600,
             poll_interval=10,
-            cb=job_status_callback,
         )
-        job_meta = session.get_job_meta(job_id)
         job_status = job_meta[JobMetaKey.STATUS.value]
+        print(f"Terminal job status: {job_status}")
         if job_status != RunStatus.FINISHED_COMPLETED.value:
             raise_for_terminal_errors(os.getenv("OUTPUT_DIR", "/workspace/output"))
             raise RuntimeError(f"Job {job_id} ended with status {job_status}")
+    except BaseException as error:
+        active_error = error
+        raise
     finally:
-        session.shutdown("all")
+        try:
+            session.shutdown(TargetType.ALL)
+        except Exception as shutdown_error:
+            if active_error is None:
+                raise
+            active_error.add_note(f"NVFlare shutdown also failed: {shutdown_error}")
 
 
 if __name__ == "__main__":

@@ -6,6 +6,11 @@ import traceback
 from typing import Any, Dict, List
 
 TERMINAL_ERROR_FILE_NAME = ".neuroflame_error.json"
+ERROR_ENVELOPE_KEY = "__neuroflame_error__"
+ERROR_SCHEMA_VERSION = 1
+ERROR_ORIGIN_SITE = "site"
+ERROR_ORIGIN_CENTRAL = "central"
+_VALID_ERROR_ORIGINS = {ERROR_ORIGIN_SITE, ERROR_ORIGIN_CENTRAL}
 
 
 def clear_terminal_error(output_dir: str) -> None:
@@ -17,7 +22,46 @@ def clear_terminal_error(output_dir: str) -> None:
         pass
 
 
-def record_terminal_error(output_dir: str, scope: str, error: Exception) -> None:
+def build_error_envelope(origin: str, stage: str, scope: str) -> Dict[str, Any]:
+    """Build safe failure provenance for transport through an NVFlare Shareable."""
+    if origin not in _VALID_ERROR_ORIGINS:
+        raise ValueError(f"Invalid error origin: {origin!r}")
+    return {
+        "schema_version": ERROR_SCHEMA_VERSION,
+        "origin": origin,
+        "stage": stage,
+        "scope": scope,
+    }
+
+
+def parse_error_envelope(value: Any) -> Dict[str, Any] | None:
+    """Validate a transported NeuroFLAME error envelope."""
+    if not isinstance(value, dict):
+        return None
+    if value.get("schema_version") != ERROR_SCHEMA_VERSION:
+        return None
+    if value.get("origin") not in _VALID_ERROR_ORIGINS:
+        return None
+    if not isinstance(value.get("stage"), str) or not value["stage"]:
+        return None
+    if not isinstance(value.get("scope"), str) or not value["scope"]:
+        return None
+    return {
+        "schema_version": ERROR_SCHEMA_VERSION,
+        "origin": value["origin"],
+        "stage": value["stage"],
+        "scope": value["scope"],
+    }
+
+
+def record_terminal_error(
+    output_dir: str,
+    scope: str,
+    error: Exception,
+    *,
+    origin: str,
+    stage: str,
+) -> None:
     """Persist an exception and traceback without replacing the original error."""
     try:
         os.makedirs(output_dir, exist_ok=True)
@@ -25,7 +69,7 @@ def record_terminal_error(output_dir: str, scope: str, error: Exception) -> None
         with open(error_path, "w", encoding="utf-8") as error_file:
             json.dump(
                 {
-                    "scope": scope,
+                    **build_error_envelope(origin, stage, scope),
                     "error_type": type(error).__name__,
                     "message": str(error),
                     "traceback": traceback.format_exc(),

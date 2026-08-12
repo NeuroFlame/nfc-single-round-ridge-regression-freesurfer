@@ -352,7 +352,7 @@ class _Serializer:
             )
         return tuple(
             self.deserialize(item, item_type)
-            for item, item_type in zip(value, item_types)
+            for item, item_type in zip(value, item_types, strict=False)
         )
 
 

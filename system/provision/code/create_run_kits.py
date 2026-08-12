@@ -1,5 +1,6 @@
 """Assemble server and client run kits from provisioned startup kits."""
 
+import json
 import logging
 import os
 import shutil
@@ -9,6 +10,12 @@ from .create_job import create_job
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
+_SERVER_RUNTIME_CLASSES = (
+    "runtime.aggregator.RuntimeAggregator",
+    "runtime.controller.RuntimeController",
+)
+_CLIENT_RUNTIME_CLASSES = ("runtime.executor.RuntimeExecutor",)
 
 
 def create_run_kits(
@@ -43,6 +50,8 @@ def create_run_kits(
             destination_path = os.path.join(output_directory, site)
             logger.info(f"Copying {source_path} to {destination_path}")
             copy_directory(source_path, destination_path)
+            extend_component_allow_list(destination_path, _CLIENT_RUNTIME_CLASSES)
+            write_computation_parameters(destination_path, computation_parameters)
 
         # Create the central node runKit
         central_node_path = os.path.join(output_directory, "centralNode")
@@ -56,6 +65,9 @@ def create_run_kits(
         copy_directory(
             server_startup_kit_path, os.path.join(central_node_path, "server")
         )
+        extend_component_allow_list(
+            os.path.join(central_node_path, "server"), _SERVER_RUNTIME_CLASSES
+        )
         logger.info(
             f"Copied server startup kit from {server_startup_kit_path} to {central_node_path}/server"
         )
@@ -67,11 +79,7 @@ def create_run_kits(
             f"Copied admin startup kit from {admin_startup_kit_path} to {central_node_path}/admin"
         )
 
-        # Create or modify computationParameters.json within the central node's runKit
-        parameters_path = os.path.join(central_node_path, "parameters.json")
-        with open(parameters_path, "w", encoding="utf-8") as f:
-            f.write(computation_parameters)
-        logger.info(f"Created computation parameters at {parameters_path}")
+        write_computation_parameters(central_node_path, computation_parameters)
 
         logger.info("RunKits created successfully.")
     except Exception as error:
@@ -87,6 +95,31 @@ def copy_directory(src: str, dest: str) -> None:
         logger.info(f"Removed existing directory at {dest}")
     shutil.copytree(src, dest)
     logger.info(f"Copied directory from {src} to {dest}")
+
+
+def write_computation_parameters(kit_path: str, computation_parameters: str) -> None:
+    """Write the shared computation parameters into a server or client run kit."""
+    parameters_path = os.path.join(kit_path, "parameters.json")
+    with open(parameters_path, "w", encoding="utf-8") as parameters_file:
+        parameters_file.write(computation_parameters)
+    logger.info(f"Created computation parameters at {parameters_path}")
+
+
+def extend_component_allow_list(kit_path: str, class_paths: tuple[str, ...]) -> None:
+    """Authorize reviewed NeuroFlame runtime classes in a provisioned site kit."""
+    resources_path = os.path.join(kit_path, "local", "resources.json.default")
+    with open(resources_path, encoding="utf-8") as resources_file:
+        resources = json.load(resources_file)
+    allow_list = resources.setdefault("class_allow_list", [])
+    if not isinstance(allow_list, list):
+        raise TypeError(f"Invalid class_allow_list in '{resources_path}'")
+    for class_path in class_paths:
+        if class_path not in allow_list:
+            allow_list.append(class_path)
+    resources["class_list_enforcement_mode"] = "enforce"
+    with open(resources_path, "w", encoding="utf-8") as resources_file:
+        json.dump(resources, resources_file, indent=2)
+        resources_file.write("\n")
 
 
 # Example usage:

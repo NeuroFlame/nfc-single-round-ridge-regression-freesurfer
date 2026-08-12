@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Federated Ridge Regression Report</title>
+<style>
+:root {
+  --bg:#ffffff;--bg2:#ffffff;--bg3:#f1f5f9;--bg4:#e2e8f0;
+  --border:#e2e8f0;--border2:#cbd5e1;
+  --text:#0f172a;--text2:#334155;--text3:#64748b;--text4:#94a3b8;
+  --header-bg:linear-gradient(135deg,#e0e9ff 0%,#f8fafc 100%);
+  --header-border:#e2e8f0;
+  --chip-bg:#f1f5f9;--chip-color:#475569;--chip-b:#6366f1;
+  --legend-color:#334155;
+  --card-bg:#ffffff;--card-hover:#f8fafc;
+  --th-bg:#f8fafc;--td-mono:#1e293b;
+  --global-row:rgba(99,102,241,.06);--global-color:#4338ca;
+}
+[data-theme="dark"] {
+  --bg:#0f172a;--bg2:#1e293b;--bg3:#0f172a;--bg4:#1a2640;
+  --border:#334155;--border2:#334155;
+  --text:#e2e8f0;--text2:#cbd5e1;--text3:#64748b;--text4:#94a3b8;
+  --header-bg:linear-gradient(135deg,#1e1b4b 0%,#0f172a 100%);
+  --header-border:#334155;
+  --chip-bg:#1e293b;--chip-color:#94a3b8;--chip-b:#a5b4fc;
+  --legend-color:#cbd5e1;
+  --card-bg:#1e293b;--card-hover:#1a2640;
+  --th-bg:#161f30;--td-mono:#cbd5e1;
+  --global-row:rgba(99,102,241,.06);--global-color:#a5b4fc;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .2s,color .2s;margin:1rem 0}
+button{font-family:inherit}
+.theme-toggle{position:fixed;top:2rem;right:1.25rem;z-index:999;background:var(--card-bg);border:1px solid var(--border);border-radius:999px;padding:.35rem .85rem;font-size:.8rem;font-weight:600;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:.4rem;box-shadow:0 1px 4px rgba(0,0,0,.08);transition:background .2s,color .2s,border-color .2s}
+.theme-toggle:hover{background:var(--bg3)}
+.page-header{background:var(--header-bg);border-bottom:1px solid var(--header-border);padding:2rem 2.5rem;padding-right:8rem}
+.page-header h1{font-size:1.7rem;font-weight:700;color:var(--text);letter-spacing:-.02em}
+.page-header p{color:var(--text3);margin-top:.35rem;font-size:.93rem}
+.chips{display:flex;gap:.6rem;margin-top:1rem;flex-wrap:wrap}
+.chip{background:var(--chip-bg);border:1px solid var(--border);border-radius:999px;padding:.25rem .75rem;font-size:.78rem;color:var(--chip-color)}
+.chip b{color:var(--chip-b)}
+.site-legend{display:flex;gap:.9rem;flex-wrap:wrap;margin-top:1rem}
+.container{max-width:1400px;margin:0 auto;padding:2rem 0}
+.section{margin-bottom:3rem}
+.section-title{font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:1.1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem}
+.stat-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.stat-card-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.stat-card-header{padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem}
+.stat-card-title{font-weight:700;color:var(--text);font-size:.9rem;flex:1}
+.hist-section{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.hist-header{padding:1.1rem 1.4rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.8rem;flex-wrap:wrap}
+.hist-title{font-size:1rem;font-weight:700;color:var(--text)}
+table.stat-table{width:100%;border-collapse:collapse;font-size:.8rem}
+table.stat-table th{color:var(--text3);font-weight:600;padding:.45rem .85rem;text-align:right;background:var(--th-bg)}
+table.stat-table th:first-child{text-align:left}
+table.stat-table td{padding:.42rem .85rem;border-top:1px solid var(--border);text-align:right}
+table.stat-table td:first-child{text-align:left}
+table.stat-table tr.global-row td{color:var(--global-color);font-weight:600;background:var(--global-row)}
+
+.badge{display:inline-block;padding:.14rem .55rem;border-radius:999px;font-size:.73rem;font-weight:600}
+.badge-green{background:rgba(16,185,129,.12);color:#15803d;border:1px solid rgba(16,185,129,.3)}
+.badge-red{background:rgba(239,68,68,.12);color:#dc2626;border:1px solid rgba(239,68,68,.3)}
+.badge-yellow{background:rgba(245,158,11,.12);color:#b45309;border:1px solid rgba(245,158,11,.3)}
+[data-theme="dark"] .badge-green{color:#34d399}
+[data-theme="dark"] .badge-red{color:#f87171}
+[data-theme="dark"] .badge-yellow{color:#fbbf24}
+/* sidebar */
+.layout{display:flex;align-items:flex-start;padding:1.5rem 2rem 0}
+.sidebar{width:190px;flex-shrink:0;position:sticky;top:1.5rem;max-height:calc(100vh - 3rem);overflow-y:auto;margin-right:1.5rem;transition:width .2s,opacity .2s,margin .2s}
+.sidebar.hidden{width:0;opacity:0;overflow:hidden;margin-right:0;pointer-events:none}
+.sidebar-inner{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:.6rem .5rem}
+.sidebar-header{display:flex;align-items:center;justify-content:space-between;padding:.2rem .3rem .45rem;border-bottom:1px solid var(--border);margin-bottom:.4rem}
+.sidebar-label{font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
+.sidebar-toggle{background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--text3);padding:.15rem .35rem;border-radius:5px;line-height:1}
+.sidebar-toggle:hover{background:var(--bg3);color:var(--text)}
+.nav-item{display:block;width:100%;padding:.4rem .65rem;border-radius:7px;font-size:.78rem;color:var(--text3);line-height:1.35;cursor:pointer;border:none;background:none;text-align:left;transition:background .12s,color .12s}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:rgba(99,102,241,.13);color:#6366f1;font-weight:600}
+[data-theme="dark"] .nav-item.active{background:rgba(165,180,252,.1);color:#a5b4fc}
+.main-content{flex:1;min-width:0}
+.sidebar-peek{position:fixed;left:0;top:50%;transform:translateY(-50%);background:var(--card-bg);border:1px solid var(--border);border-left:none;border-radius:0 8px 8px 0;padding:.55rem .35rem;cursor:pointer;font-size:.72rem;color:var(--text3);display:none;z-index:200;writing-mode:vertical-rl;letter-spacing:.06em;line-height:1}
+.sidebar-peek:hover{color:var(--text)}
+.sidebar-peek.visible{display:block}
+</style>
+</head>
+<body>
+<button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙 Dark mode</button>
+<div class="layout"><aside class="sidebar" id="sidebar"><div class="sidebar-inner"><div class="sidebar-header"><span class="sidebar-label">Sections</span><button class="sidebar-toggle" onclick="toggleSidebar()">&#x2715;</button></div><button class="nav-item" data-sec="sec-study-overview" onclick="document.getElementById('sec-study-overview').scrollIntoView({behavior:'smooth',block:'start'})">Study Overview</button>
+<button class="nav-item" data-sec="sec-global-summary" onclick="document.getElementById('sec-global-summary').scrollIntoView({behavior:'smooth',block:'start'})">Global Summary</button>
+<button class="nav-item" data-sec="sec-coefficients" onclick="document.getElementById('sec-coefficients').scrollIntoView({behavior:'smooth',block:'start'})">Coefficients</button>
+<button class="nav-item" data-sec="sec-p-values-significance" onclick="document.getElementById('sec-p-values-significance').scrollIntoView({behavior:'smooth',block:'start'})">P-values &amp; Significance</button></div></aside><button class="sidebar-peek" id="sidebarPeek" onclick="toggleSidebar()">Sections</button><div class="main-content"><div class="page-header">
+  <h1>Single Round Ridge Regression</h1>
+  <p>Federated ridge regression across 4 sites</p>
+  <div class="chips">
+    <div class="chip">Sites <b>4</b></div>
+    <div class="chip">Outcomes (ROIs) <b>2</b></div>
+    <div class="chip">Covariates <b>4</b></div>
+    <div class="chip">λ (Ridge) <b>1</b></div>
+  </div>
+  <div style="margin-top:.9rem;display:flex;flex-wrap:wrap;gap:.4rem"><span style="background:var(--chip-bg);border:1px solid var(--border);border-radius:999px;padding:.2rem .65rem;font-size:.76rem;color:var(--chip-color)">4th-Ventricle</span><span style="background:var(--chip-bg);border:1px solid var(--border);border-radius:999px;padding:.2rem .65rem;font-size:.76rem;color:var(--chip-color)">5th-Ventricle</span></div>
+  <div class="site-legend" style="margin-top:.75rem"><div style="display:flex;align-items:center;gap:.45rem;font-size:.83rem;color:var(--legend-color)"><div style="width:11px;height:11px;border-radius:3px;background:rgba(99,102,241,1.0)"></div>site1</div><div style="display:flex;align-items:center;gap:.45rem;font-size:.83rem;color:var(--legend-color)"><div style="width:11px;height:11px;border-radius:3px;background:rgba(20,184,166,1.0)"></div>site2</div><div style="display:flex;align-items:center;gap:.45rem;font-size:.83rem;color:var(--legend-color)"><div style="width:11px;height:11px;border-radius:3px;background:rgba(245,158,11,1.0)"></div>site3</div><div style="display:flex;align-items:center;gap:.45rem;font-size:.83rem;color:var(--legend-color)"><div style="width:11px;height:11px;border-radius:3px;background:rgba(239,68,68,1.0)"></div>site4</div></div>
+</div><div class="container"><div class="section" id="sec-global-summary"><div class="section-title">Global Summary</div><div class="stats-grid"><div class="stat-card">
+  <div class="stat-card-header">
+    <div class="stat-card-title">4th-Ventricle</div>
+    <span class="badge badge-yellow">
+      R²&nbsp;0.4005
+    </span>
+  </div>
+  <div style="padding:.85rem 1rem">
+    <div style="margin-top:.5rem;background:var(--bg3);border-radius:999px;height:6px"><div style="width:40.1%;background:#d97706;height:6px;border-radius:999px"></div></div><div style="font-size:.7rem;color:var(--text3);margin-top:.25rem">40.1% variance explained (global)</div>
+    <div style="margin-top:.75rem;font-size:.72rem;font-weight:700;text-transform:uppercase;
+                letter-spacing:.07em;color:var(--text3);margin-bottom:.35rem">R² by site</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.8rem"><span><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(99,102,241,0.12);color:#3730a3;border:1px solid rgba(99,102,241,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(99,102,241,1.0);flex-shrink:0"></span>site1</span></span><span style="font-family:monospace;color:var(--td-mono)">0.5140</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.8rem"><span><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(20,184,166,0.12);color:#0f766e;border:1px solid rgba(20,184,166,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(20,184,166,1.0);flex-shrink:0"></span>site2</span></span><span style="font-family:monospace;color:var(--td-mono)">0.7552</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.8rem"><span><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(245,158,11,0.12);color:#92400e;border:1px solid rgba(245,158,11,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(245,158,11,1.0);flex-shrink:0"></span>site3</span></span><span style="font-family:monospace;color:var(--td-mono)">0.3938</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.8rem"><span><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(239,68,68,0.12);color:#991b1b;border:1px solid rgba(239,68,68,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(239,68,68,1.0);flex-shrink:0"></span>site4</span></span><span style="font-family:monospace;color:var(--td-mono)">0.7589</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.75rem">
+      <div style="background:var(--bg3);border-radius:8px;padding:.6rem .8rem">
+        <div style="font-size:.7rem;color:var(--text3)">Degrees of Freedom</div>
+        <div style="font-family:monospace;font-size:.9rem;color:var(--td-mono);font-weight:600">299</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:.6rem .8rem">
+        <div style="font-size:.7rem;color:var(--text3)">Global SSE</div>
+        <div style="font-family:monospace;font-size:.9rem;color:var(--td-mono);font-weight:600">2552428408.69</div>
+      </div>
+    </div>
+  </div>
+</div><div class="stat-card">
+  <div class="stat-card-header">
+    <div class="stat-card-title">5th-Ventricle</div>
+    <span class="badge badge-yellow">
+      R²&nbsp;0.4324
+    </span>
+  </div>
+  <div style="padding:.85rem 1rem">
+    <div style="margin-top:.5rem;background:var(--bg3);border-radius:999px;height:6px"><div style="width:43.2%;background:#d97706;height:6px;border-radius:999px"></div></div><div style="font-size:.7rem;color:var(--text3);margin-top:.25rem">43.2% variance explained (global)</div>
+    <div style="margin-top:.75rem;font-size:.72rem;font-weight:700;text-transform:uppercase;
+                letter-spacing:.07em;color:var(--text3);margin-bottom:.35rem">R² by site</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.8rem"><span><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(99,102,241,0.12);color:#3730a3;border:1px solid rgba(99,102,241,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(99,102,241,1.0);flex-shrink:0"></span>site1</span></span><span style="font-family:monospace;color:var(--td-mono)">0.8302</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.8rem"><span><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(20,184,166,0.12);color:#0f766e;border:1px solid rgba(20,184,166,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(20,184,166,1.0);flex-shrink:0"></span>site2</span></span><span style="font-family:monospace;color:var(--td-mono)">0.7440</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.8rem"><span><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(245,158,11,0.12);color:#92400e;border:1px solid rgba(245,158,11,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(245,158,11,1.0);flex-shrink:0"></span>site3</span></span><span style="font-family:monospace;color:var(--td-mono)">0.8303</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.8rem"><span><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(239,68,68,0.12);color:#991b1b;border:1px solid rgba(239,68,68,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(239,68,68,1.0);flex-shrink:0"></span>site4</span></span><span style="font-family:monospace;color:var(--td-mono)">0.4982</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.75rem">
+      <div style="background:var(--bg3);border-radius:8px;padding:.6rem .8rem">
+        <div style="font-size:.7rem;color:var(--text3)">Degrees of Freedom</div>
+        <div style="font-family:monospace;font-size:.9rem;color:var(--td-mono);font-weight:600">299</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:.6rem .8rem">
+        <div style="font-size:.7rem;color:var(--text3)">Global SSE</div>
+        <div style="font-family:monospace;font-size:.9rem;color:var(--td-mono);font-weight:600">5711193823.48</div>
+      </div>
+    </div>
+  </div>
+</div></div></div></div><div class="container"><div class="section" id="sec-coefficients"><div class="section-title">Coefficients</div><div class="hist-section" style="margin-bottom:1.5rem">
+  <div class="hist-header">
+    <div class="hist-title">4th-Ventricle</div>
+    <span style="font-size:.8rem;color:var(--text3)">Global coef · t-stat · p-value, then per-site coef · t-stat</span>
+  </div>
+  <div class="stat-card-scroll">
+    <table class="stat-table" style="min-width:600px">
+      <thead>
+        <tr>
+          <th style="text-align:left">Variable</th>
+          <th>Global Coef</th><th>t</th><th>p-value</th>
+          <th colspan="2"><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(99,102,241,0.12);color:#3730a3;border:1px solid rgba(99,102,241,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(99,102,241,1.0);flex-shrink:0"></span>site1</span></th><th colspan="2"><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(20,184,166,0.12);color:#0f766e;border:1px solid rgba(20,184,166,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(20,184,166,1.0);flex-shrink:0"></span>site2</span></th><th colspan="2"><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(245,158,11,0.12);color:#92400e;border:1px solid rgba(245,158,11,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(245,158,11,1.0);flex-shrink:0"></span>site3</span></th><th colspan="2"><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(239,68,68,0.12);color:#991b1b;border:1px solid rgba(239,68,68,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(239,68,68,1.0);flex-shrink:0"></span>site4</span></th>
+        </tr>
+        <tr>
+          <th></th><th></th><th></th><th></th>
+          <th>Coef</th><th>t</th><th>Coef</th><th>t</th><th>Coef</th><th>t</th><th>Coef</th><th>t</th>
+        </tr>
+      </thead>
+      <tbody><tr>
+  <td style="font-weight:600;color:var(--text2);white-space:nowrap">const</td>
+  <td style="font-family:monospace;font-size:.82rem;color:var(--td-mono);font-weight:700">
+    -128.5757
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--text3)">
+    -0.239
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--text3)">0.8110</td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-64.3306</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.108</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-228.7908</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.264</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-49.1023</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.069</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-172.0790</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.227</td>
+</tr><tr>
+  <td style="font-weight:600;color:var(--text2);white-space:nowrap">isControl</td>
+  <td style="font-family:monospace;font-size:.82rem;color:var(--td-mono);font-weight:700">
+    -219.7443
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--text3)">
+    -0.652
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--text3)">0.5147</td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-187.5130</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.455</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-223.8552</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.376</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-235.8293</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.558</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-231.7794</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.516</td>
+</tr><tr>
+  <td style="font-weight:600;color:var(--text2);white-space:nowrap">age</td>
+  <td style="font-family:monospace;font-size:.82rem;color:var(--td-mono);font-weight:700">
+    129.0429
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--text3)">
+    13.249
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;background:rgba(16,185,129,0.55);color:#065f46;font-weight:700"><0.0001</td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">83.5464</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">7.608</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">170.1054</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">9.788</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">87.7564</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">6.981</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">174.7633</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">13.241</td>
+</tr><tr>
+  <td style="font-weight:600;color:var(--text2);white-space:nowrap">sex_M</td>
+  <td style="font-family:monospace;font-size:.82rem;color:var(--td-mono);font-weight:700">
+    -27.6072
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--text3)">
+    -0.081
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--text3)">0.9359</td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-54.3880</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.130</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-61.2543</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.103</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">9.9405</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">0.023</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-4.7270</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.010</td>
+</tr></tbody>
+    </table>
+  </div>
+  <div style="padding:.5rem 1rem .75rem;font-size:.72rem;color:var(--text3);border-top:1px solid var(--border)">
+    *** p&lt;0.001 &nbsp;** p&lt;0.01 &nbsp;* p&lt;0.05
+  </div>
+</div><div class="hist-section" style="margin-bottom:1.5rem">
+  <div class="hist-header">
+    <div class="hist-title">5th-Ventricle</div>
+    <span style="font-size:.8rem;color:var(--text3)">Global coef · t-stat · p-value, then per-site coef · t-stat</span>
+  </div>
+  <div class="stat-card-scroll">
+    <table class="stat-table" style="min-width:600px">
+      <thead>
+        <tr>
+          <th style="text-align:left">Variable</th>
+          <th>Global Coef</th><th>t</th><th>p-value</th>
+          <th colspan="2"><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(99,102,241,0.12);color:#3730a3;border:1px solid rgba(99,102,241,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(99,102,241,1.0);flex-shrink:0"></span>site1</span></th><th colspan="2"><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(20,184,166,0.12);color:#0f766e;border:1px solid rgba(20,184,166,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(20,184,166,1.0);flex-shrink:0"></span>site2</span></th><th colspan="2"><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(245,158,11,0.12);color:#92400e;border:1px solid rgba(245,158,11,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(245,158,11,1.0);flex-shrink:0"></span>site3</span></th><th colspan="2"><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(239,68,68,0.12);color:#991b1b;border:1px solid rgba(239,68,68,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(239,68,68,1.0);flex-shrink:0"></span>site4</span></th>
+        </tr>
+        <tr>
+          <th></th><th></th><th></th><th></th>
+          <th>Coef</th><th>t</th><th>Coef</th><th>t</th><th>Coef</th><th>t</th><th>Coef</th><th>t</th>
+        </tr>
+      </thead>
+      <tbody><tr>
+  <td style="font-weight:600;color:var(--text2);white-space:nowrap">const</td>
+  <td style="font-family:monospace;font-size:.82rem;color:var(--td-mono);font-weight:700">
+    -9.6752
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--text3)">
+    -0.012
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--text3)">0.9904</td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">57.1616</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">0.083</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-60.9723</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.082</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-14.8540</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.019</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-20.0361</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.025</td>
+</tr><tr>
+  <td style="font-weight:600;color:var(--text2);white-space:nowrap">isControl</td>
+  <td style="font-family:monospace;font-size:.82rem;color:var(--td-mono);font-weight:700">
+    -153.6063
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--text3)">
+    -0.305
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--text3)">0.7607</td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-300.7896</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.631</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-63.8476</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.124</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-144.0487</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.311</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-105.7394</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.225</td>
+</tr><tr>
+  <td style="font-weight:600;color:var(--text2);white-space:nowrap">age</td>
+  <td style="font-family:monospace;font-size:.82rem;color:var(--td-mono);font-weight:700">
+    201.4537
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--text3)">
+    13.828
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;background:rgba(16,185,129,0.55);color:#065f46;font-weight:700"><0.0001</td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">237.1537</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">18.691</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">160.6278</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">10.704</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">292.9152</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">21.240</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">115.1180</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">8.336</td>
+</tr><tr>
+  <td style="font-weight:600;color:var(--text2);white-space:nowrap">sex_M</td>
+  <td style="font-family:monospace;font-size:.82rem;color:var(--td-mono);font-weight:700">
+    -2.2473
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--text3)">
+    -0.004
+  </td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--text3)">0.9965</td>
+  <td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-21.2131</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.044</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-11.8798</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.023</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">-18.6302</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">-0.040</td><td style="font-family:monospace;font-size:.79rem;color:var(--td-mono)">42.7337</td><td style="font-family:monospace;font-size:.79rem;color:var(--text3)">0.089</td>
+</tr></tbody>
+    </table>
+  </div>
+  <div style="padding:.5rem 1rem .75rem;font-size:.72rem;color:var(--text3);border-top:1px solid var(--border)">
+    *** p&lt;0.001 &nbsp;** p&lt;0.01 &nbsp;* p&lt;0.05
+  </div>
+</div></div></div><div class="container"><div class="section" id="sec-p-values-significance"><div class="section-title">P-values &amp; Significance</div><div style="margin-bottom:.4rem;font-size:.85rem;color:var(--text2);font-weight:600">Global p-values</div><div class="stat-card-scroll"><table class="stat-table" style="min-width:500px"><thead><tr><th style="text-align:left">Variable</th><th>4th-Ventricle</th><th>5th-Ventricle</th></tr></thead><tbody><tr><td style="font-weight:600;color:var(--text2)">const</td><td style="font-family:monospace;color:var(--text3)">0.8110</td><td style="font-family:monospace;color:var(--text3)">0.9904</td></tr><tr><td style="font-weight:600;color:var(--text2)">isControl</td><td style="font-family:monospace;color:var(--text3)">0.5147</td><td style="font-family:monospace;color:var(--text3)">0.7607</td></tr><tr><td style="font-weight:600;color:var(--text2)">age</td><td style="font-family:monospace;background:rgba(16,185,129,0.55);color:#065f46;font-weight:700"><0.0001</td><td style="font-family:monospace;background:rgba(16,185,129,0.55);color:#065f46;font-weight:700"><0.0001</td></tr><tr><td style="font-weight:600;color:var(--text2)">sex_M</td><td style="font-family:monospace;color:var(--text3)">0.9359</td><td style="font-family:monospace;color:var(--text3)">0.9965</td></tr></tbody></table></div><div style="margin-top:.75rem;font-size:.77rem;color:var(--text3);display:flex;gap:1.2rem;flex-wrap:wrap"><span style="background:rgba(16,185,129,.55);color:#065f46;font-weight:700;padding:.1rem .5rem;border-radius:4px">p&lt;0.001</span><span style="background:rgba(16,185,129,.3);color:#065f46;font-weight:600;padding:.1rem .5rem;border-radius:4px">p&lt;0.01</span><span style="background:rgba(16,185,129,.12);color:#047857;padding:.1rem .5rem;border-radius:4px">p&lt;0.05</span><span style="color:var(--text3)">— not significant</span></div><div style="margin-top:1.5rem;font-size:.85rem;color:var(--text2);font-weight:600">Per-site p-values</div><div style="margin-top:1.2rem"><div style="font-size:.8rem;font-weight:700;margin-bottom:.5rem"><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(99,102,241,0.12);color:#3730a3;border:1px solid rgba(99,102,241,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(99,102,241,1.0);flex-shrink:0"></span>site1</span></div><div class="stat-card-scroll"><table class="stat-table" style="min-width:400px"><thead><tr><th style="text-align:left">Variable</th><th>4th-Ventricle</th><th>5th-Ventricle</th></tr></thead><tbody><tr><td style="font-weight:600;color:var(--text2)">const</td><td style="font-family:monospace;color:var(--text3)">0.9146</td><td style="font-family:monospace;color:var(--text3)">0.9343</td></tr><tr><td style="font-weight:600;color:var(--text2)">isControl</td><td style="font-family:monospace;color:var(--text3)">0.6509</td><td style="font-family:monospace;color:var(--text3)">0.5301</td></tr><tr><td style="font-weight:600;color:var(--text2)">age</td><td style="font-family:monospace;background:rgba(16,185,129,0.55);color:#065f46;font-weight:700"><0.0001</td><td style="font-family:monospace;background:rgba(16,185,129,0.55);color:#065f46;font-weight:700"><0.0001</td></tr><tr><td style="font-weight:600;color:var(--text2)">sex_M</td><td style="font-family:monospace;color:var(--text3)">0.8974</td><td style="font-family:monospace;color:var(--text3)">0.9653</td></tr></tbody></table></div></div><div style="margin-top:1.2rem"><div style="font-size:.8rem;font-weight:700;margin-bottom:.5rem"><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(20,184,166,0.12);color:#0f766e;border:1px solid rgba(20,184,166,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(20,184,166,1.0);flex-shrink:0"></span>site2</span></div><div class="stat-card-scroll"><table class="stat-table" style="min-width:400px"><thead><tr><th style="text-align:left">Variable</th><th>4th-Ventricle</th><th>5th-Ventricle</th></tr></thead><tbody><tr><td style="font-weight:600;color:var(--text2)">const</td><td style="font-family:monospace;color:var(--text3)">0.7930</td><td style="font-family:monospace;color:var(--text3)">0.9354</td></tr><tr><td style="font-weight:600;color:var(--text2)">isControl</td><td style="font-family:monospace;color:var(--text3)">0.7088</td><td style="font-family:monospace;color:var(--text3)">0.9018</td></tr><tr><td style="font-weight:600;color:var(--text2)">age</td><td style="font-family:monospace;background:rgba(16,185,129,0.55);color:#065f46;font-weight:700"><0.0001</td><td style="font-family:monospace;background:rgba(16,185,129,0.55);color:#065f46;font-weight:700"><0.0001</td></tr><tr><td style="font-weight:600;color:var(--text2)">sex_M</td><td style="font-family:monospace;color:var(--text3)">0.9185</td><td style="font-family:monospace;color:var(--text3)">0.9817</td></tr></tbody></table></div></div><div style="margin-top:1.2rem"><div style="font-size:.8rem;font-weight:700;margin-bottom:.5rem"><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(245,158,11,0.12);color:#92400e;border:1px solid rgba(245,158,11,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(245,158,11,1.0);flex-shrink:0"></span>site3</span></div><div class="stat-card-scroll"><table class="stat-table" style="min-width:400px"><thead><tr><th style="text-align:left">Variable</th><th>4th-Ventricle</th><th>5th-Ventricle</th></tr></thead><tbody><tr><td style="font-weight:600;color:var(--text2)">const</td><td style="font-family:monospace;color:var(--text3)">0.9450</td><td style="font-family:monospace;color:var(--text3)">0.9848</td></tr><tr><td style="font-weight:600;color:var(--text2)">isControl</td><td style="font-family:monospace;color:var(--text3)">0.5778</td><td style="font-family:monospace;color:var(--text3)">0.7565</td></tr><tr><td style="font-weight:600;color:var(--text2)">age</td><td style="font-family:monospace;background:rgba(16,185,129,0.55);color:#065f46;font-weight:700"><0.0001</td><td style="font-family:monospace;background:rgba(16,185,129,0.55);color:#065f46;font-weight:700"><0.0001</td></tr><tr><td style="font-weight:600;color:var(--text2)">sex_M</td><td style="font-family:monospace;color:var(--text3)">0.9816</td><td style="font-family:monospace;color:var(--text3)">0.9686</td></tr></tbody></table></div></div><div style="margin-top:1.2rem"><div style="font-size:.8rem;font-weight:700;margin-bottom:.5rem"><span style="display:inline-flex;align-items:center;gap:.35rem;background:rgba(239,68,68,0.12);color:#991b1b;border:1px solid rgba(239,68,68,1.0);border-radius:999px;padding:.18rem .6rem;font-size:.75rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:rgba(239,68,68,1.0);flex-shrink:0"></span>site4</span></div><div class="stat-card-scroll"><table class="stat-table" style="min-width:400px"><thead><tr><th style="text-align:left">Variable</th><th>4th-Ventricle</th><th>5th-Ventricle</th></tr></thead><tbody><tr><td style="font-weight:600;color:var(--text2)">const</td><td style="font-family:monospace;color:var(--text3)">0.8210</td><td style="font-family:monospace;color:var(--text3)">0.9799</td></tr><tr><td style="font-weight:600;color:var(--text2)">isControl</td><td style="font-family:monospace;color:var(--text3)">0.6075</td><td style="font-family:monospace;color:var(--text3)">0.8227</td></tr><tr><td style="font-weight:600;color:var(--text2)">age</td><td style="font-family:monospace;background:rgba(16,185,129,0.55);color:#065f46;font-weight:700"><0.0001</td><td style="font-family:monospace;background:rgba(16,185,129,0.55);color:#065f46;font-weight:700"><0.0001</td></tr><tr><td style="font-weight:600;color:var(--text2)">sex_M</td><td style="font-family:monospace;color:var(--text3)">0.9918</td><td style="font-family:monospace;color:var(--text3)">0.9291</td></tr></tbody></table></div></div></div></div></div></div>
+<script>
+function getTheme(){try{return localStorage.getItem('theme')||'light'}catch(e){return'light'}}
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'');
+  document.getElementById('themeBtn').textContent=t==='dark'?'☀️ Light mode':'🌙 Dark mode';
+}
+function toggleTheme(){var n=getTheme()==='dark'?'light':'dark';try{localStorage.setItem('theme',n)}catch(e){}applyTheme(n);}
+function toggleSidebar(){
+  var sb=document.getElementById('sidebar'),pk=document.getElementById('sidebarPeek');
+  var h=sb.classList.toggle('hidden');
+  try{localStorage.setItem('sidebarHidden',h?'1':'0')}catch(e){}
+  if(pk)pk.classList.toggle('visible',h);
+}
+(function(){try{
+  if(localStorage.getItem('sidebarHidden')==='1'){
+    var sb=document.getElementById('sidebar'),pk=document.getElementById('sidebarPeek');
+    if(sb)sb.classList.add('hidden');if(pk)pk.classList.add('visible');
+  }
+}catch(e){}}());
+document.addEventListener('DOMContentLoaded',function(){
+  var items=document.querySelectorAll('.nav-item[data-sec]');
+  if(!items.length)return;
+  var secs=Array.from(items).map(function(el){return document.getElementById(el.getAttribute('data-sec'));}).filter(Boolean);
+  function onScroll(){
+    var y=window.scrollY+140,active=secs[0];
+    secs.forEach(function(s){if(s.offsetTop<=y)active=s;});
+    items.forEach(function(el){el.classList.toggle('active',active&&el.getAttribute('data-sec')===active.id);});
+  }
+  window.addEventListener('scroll',onScroll,{passive:true});
+  onScroll();
+  applyTheme(getTheme());
+});
+</script>
+</body>
+</html>
