@@ -1,18 +1,25 @@
+"""Partition existing ridge input tables into simulated site datasets."""
+
 import os
-from sklearn.model_selection import StratifiedKFold
+
 import pandas as pd
+from sklearn.model_selection import StratifiedKFold
+
 
 def merge_existing_data(input_dir, covariates_file_name, data_file_name):
-    '''
-    Combine covariate and data from all the sites and return them as dataframes
-    '''
-    site_dirs = [os.path.join(input_dir, name) for name in os.listdir(input_dir) if
-                    name.startswith("site") and os.path.isdir(os.path.join(input_dir, name))]
-    covariates_df=None
-    data_df=None
+    """Combine covariate and outcome data from all site directories."""
+    site_dirs = [
+        os.path.join(input_dir, name)
+        for name in os.listdir(input_dir)
+        if name.startswith("site") and os.path.isdir(os.path.join(input_dir, name))
+    ]
+    covariates_df = None
+    data_df = None
 
     for site_dir in site_dirs:
-        temp_covar_df = pd.read_csv(os.path.join(site_dir, covariates_file_name), header=0)
+        temp_covar_df = pd.read_csv(
+            os.path.join(site_dir, covariates_file_name), header=0
+        )
         temp_data_df = pd.read_csv(os.path.join(site_dir, data_file_name))
         if covariates_df is None or data_df is None:
             covariates_df = temp_covar_df
@@ -23,29 +30,34 @@ def merge_existing_data(input_dir, covariates_file_name, data_file_name):
 
     return covariates_df, data_df
 
-def partition_data(num_splits, stratify_covariate_column_name, covariates_df, data_df, output_dir):
-    '''
-    Partitions a dataset into the specified number of splits based on stratified sampling.
-    num_splits: number of paritions needed for the data
-    stratify_covariate_column_name: column name in the covariate file based on which data needs to be sampled
-    covariates_df: covariates dataframe object
-    data_df: freesurfer dataframe object
-    output_dir: output directory path (needs a new directory name)
-    '''
 
+def partition_data(
+    num_splits, stratify_covariate_column_name, covariates_df, data_df, output_dir
+):
+    """Partition a dataset into stratified site samples.
+
+    Args:
+        num_splits: Number of site partitions to generate.
+        stratify_covariate_column_name: Covariate used for stratification.
+        covariates_df: Covariate dataframe.
+        data_df: FreeSurfer outcome dataframe.
+        output_dir: Parent directory for generated site directories.
+    """
     skf = StratifiedKFold(n_splits=num_splits, shuffle=True, random_state=42)
     splits = []
-    for train_index, test_index in skf.split(covariates_df, covariates_df[stratify_covariate_column_name]):
+    for _train_index, test_index in skf.split(
+        covariates_df, covariates_df[stratify_covariate_column_name]
+    ):
         splits.append(test_index.tolist())
 
-    has_issue=False
+    has_issue = False
     for i in range(len(splits)):
-        for j in range(i+1, len(splits)):
-           if set(splits[i]).intersection(splits[j]):
-               err_msg=f"Has common elements between split {i}, {j}"
-               print(err_msg)
-               has_issue=True
-               break;
+        for j in range(i + 1, len(splits)):
+            if set(splits[i]).intersection(splits[j]):
+                err_msg = f"Has common elements between split {i}, {j}"
+                print(err_msg)
+                has_issue = True
+                break
     if has_issue:
         raise Exception(err_msg)
 
@@ -53,11 +65,11 @@ def partition_data(num_splits, stratify_covariate_column_name, covariates_df, da
         X = covariates_df.iloc[splits[i]]
         y = data_df.iloc[splits[i]]
 
-        dir_name=os.path.join(output_dir, f'site{i+1}')
+        dir_name = os.path.join(output_dir, f"site{i + 1}")
         os.makedirs(dir_name)
 
-        X.to_csv(os.path.join(dir_name, f'covariates.csv'), index=False)
-        y.to_csv(os.path.join(dir_name, f'data.csv'), index=False)
+        X.to_csv(os.path.join(dir_name, "covariates.csv"), index=False)
+        y.to_csv(os.path.join(dir_name, "data.csv"), index=False)
 
 
 if __name__ == "__main__":
@@ -68,6 +80,7 @@ if __name__ == "__main__":
     # partition_data(4, covariates_df, data_df, output_dir)
 
     # test-2
-    covar_df, data_df = merge_existing_data("../test_data", "covariates.csv", "data.csv")
+    covar_df, data_df = merge_existing_data(
+        "../test_data", "covariates.csv", "data.csv"
+    )
     partition_data(4, "isControl", covar_df, data_df, "../temp_test_data")
-

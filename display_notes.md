@@ -17,7 +17,10 @@ This computation performs a ridge regression on datasets given in .csv format fr
  },
  "Lambda": 1,
  "IgnoreSubjectsWithMissingData": true,
- "StrictTypeChecking": false
+ "StrictTypeChecking": false,
+ "user_name": "Dr. Jane Smith",
+ "user_id": "user-42",
+ "log_level": "info"
 }
 ```
 
@@ -27,9 +30,16 @@ This computation performs a ridge regression on datasets given in .csv format fr
 | --- | --- | --- | --- | --- | --- |
 | `Dependents` | `dict` | Provide all the dependent that should be used for regressing along with their type as shown in the example above. | dict |   - | ✅ true |
 | `Covariates` | `dict` | Provide all the covariates that need to be considered for regression along with their type as shown in the example above | dict | - | ✅ true |
-| `Lambda` | `float` | This parameter is the penalty weight that is applied to all variables in the model during regression. If 0, perform simple linear regression, otherwise it does ridge regression. | any value between 0 and 1 | 0 | ❌ false |
+| `Lambda` | `float` | This parameter is the penalty weight applied to all variables in the model during regression. If 0, perform simple linear regression; otherwise perform ridge regression. | any non-negative number | 0 | ❌ false |
 | `IgnoreSubjectsWithMissingData` | `boolean` | This parameter lets the computation owner to decide how to handle if the data has missing or empty values. | true or false | false | ❌ false |
 | `StrictTypeChecking` | `boolean` | When true, rejects rows where the raw cell value is not already the declared column type (e.g. a boolean in a float column). When false (default), only rejects values that cannot be coerced to the target type at all. | true or false | false | ❌ false |
+| `user_name` | `string` | Optional display name shown in the styled HTML report. | text | - | ❌ false |
+| `user_id` | `string` | Optional user identifier shown in the styled HTML report. | text | - | ❌ false |
+| `log_level` | `string` | Minimum site log level. | debug, info, warning, error, critical | info | ❌ false |
+
+The platform may also provide `site_id_name_map`. It maps stable provisioning
+IDs to display names used for site-keyed results and filenames; computation
+owners do not need to order sites manually.
 
 ### Input Description
 
@@ -89,9 +99,9 @@ The key steps of the algorithm include:
         
     *   Statistical metrics (e.g., t-values, p-values, R-squared) are calculated using an ordinary least squares (OLS) ridge regression model to provide interpretability.
         
-2.  **Global Aggregation (controller)**:
+2.  **Global Aggregation (server)**:
     
-    *   After each site computes its local regression results, the controller aggregates the results by performing averaging of the coefficients and other statistics based on the number of subjects (degrees of freedom) per site.
+    *   After each site computes its local regression results, the remote computation aggregates the results by performing averaging of the coefficients and other statistics based on the number of subjects (degrees of freedom) per site.
 
 ### Assumptions
 
@@ -103,9 +113,9 @@ The key steps of the algorithm include:
 
 ### Output Description
 
-*   **Output files: global\_regression\_result.json, global\_regression\_result.html, global\_stats.csv, local\_stats\_{siteid}.csv**
+*   **Output files: global\_regression\_result.json, index.html, global\_stats.csv, local\_stats\_{site\_name}.csv, and a site log**
     
-*   The json and files have both global and local output results. The global\_stats.csv has only global results and local\_stats\_{siteid}.csv has local results corresponding to each participating site.
+*   The JSON and HTML files contain both global and local output results. `global_stats.csv` contains only global results and each `local_stats_{site_name}.csv` contains local results for one participating site.
     
 
 The computation outputs both **site-level** and **global-level** results, which include:

@@ -1,21 +1,36 @@
-import argparse
-import sys
-from sys import platform
+"""Run a generated ridge job with the NVFlare simulator API."""
 
+import argparse
+import os
+import sys
+
+from framework.errors import raise_for_terminal_errors
 from nvflare.private.fed.app.simulator.simulator_runner import SimulatorRunner
 
 
 def define_simulator_parser(simulator_parser):
+    """Add NVFlare simulator options to an argument parser."""
     simulator_parser.add_argument("job_folder")
-    simulator_parser.add_argument("-w", "--workspace", type=str, help="WORKSPACE folder")
-    simulator_parser.add_argument("-n", "--n_clients", type=int, help="number of clients")
+    simulator_parser.add_argument(
+        "-w", "--workspace", type=str, help="WORKSPACE folder"
+    )
+    simulator_parser.add_argument(
+        "-n", "--n_clients", type=int, help="number of clients"
+    )
     simulator_parser.add_argument("-c", "--clients", type=str, help="client names list")
-    simulator_parser.add_argument("-t", "--threads", type=int, help="number of parallel running clients")
-    simulator_parser.add_argument("-gpu", "--gpu", type=str, help="list of GPU Device Ids, comma separated")
-    simulator_parser.add_argument("-m", "--max_clients", type=int, default=100, help="max number of clients")
+    simulator_parser.add_argument(
+        "-t", "--threads", type=int, help="number of parallel running clients"
+    )
+    simulator_parser.add_argument(
+        "-gpu", "--gpu", type=str, help="list of GPU Device Ids, comma separated"
+    )
+    simulator_parser.add_argument(
+        "-m", "--max_clients", type=int, default=100, help="max number of clients"
+    )
 
 
 def run_simulator(simulator_args):
+    """Run the simulator and raise any recorded terminal computation error."""
     simulator = SimulatorRunner(
         job_folder=simulator_args.job_folder,
         workspace=simulator_args.workspace,
@@ -26,20 +41,22 @@ def run_simulator(simulator_args):
         max_clients=simulator_args.max_clients,
     )
     run_status = simulator.run()
+    result_root = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "test_output",
+        "simulate_job",
+    )
+    raise_for_terminal_errors(result_root)
 
     return run_status
 
 
 if __name__ == "__main__":
     """
-    This is the main program when running the NVFlare Simulator. Use the Flare simulator API,
-    create the SimulatorRunner object, do a setup(), then calls the run().
-    
-    1) Add the following as script input parameters : 
-        ./app -w ./ -n 2 -c site1,site2
-    2) ADD the following env variable where XXX is the full path to your workspace dir
-        PYTHONPATH=XXX/app/code  
-    
+    Run the generated job with the NVFlare SimulatorRunner API.
+
+    Example arguments:
+        ./job -w ./simulator_workspace -n 2 -c site1,site2
     """
 
     if sys.version_info < (3, 7):

@@ -7,15 +7,15 @@
   "task_result_filters": [],
   "components": [
     {
-      "id": "srr_aggregator",
-      "path": "aggregator.aggregator.SRRAggregator",
+      "id": "aggregator",
+      "path": "runtime.aggregator.RuntimeAggregator",
       "args": {}
     }
   ],
   "workflows": [
     {
-      "id": "srr_workflow",
-      "path": "controller.controller.SRRController",
+      "id": "controller",
+      "path": "runtime.controller.RuntimeController",
       "args": {
       }
     }
