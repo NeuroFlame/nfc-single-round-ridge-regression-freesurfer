@@ -9,6 +9,10 @@ import pandas as pd
 from . import constants
 
 
+class InputValidationError(ValueError):
+    """Describe an actionable input problem without exposing local row data."""
+
+
 def _normalize_column_name(column_name: str) -> str:
     """Normalize a CSV column name for compatibility matching."""
     return column_name.strip().lower()
@@ -28,7 +32,10 @@ def _build_normalized_column_map(
                 f"'{normalized_column_map[normalized_column]}' and '{column}'."
             )
             logger.info(error_message)
-            raise ValueError(error_message)
+            raise InputValidationError(
+                f"{file_label} CSV contains duplicate column names after ignoring "
+                "case and surrounding whitespace."
+            )
 
         normalized_column_map[normalized_column] = column
 
@@ -57,7 +64,11 @@ def _select_columns_case_insensitive(
             f"least {expected_columns}, but got {set(dataframe.columns)}."
         )
         logger.info(error_message)
-        raise ValueError(error_message)
+        role = "covariate" if file_label == "Covariates" else "dependent"
+        plural = "s" if len(missing_columns) != 1 else ""
+        raise InputValidationError(
+            f"Missing required {role} column{plural}: {', '.join(missing_columns)}"
+        )
 
     actual_columns = [
         normalized_column_map[_normalize_column_name(column)]
@@ -132,6 +143,9 @@ def validate_and_get_inputs(
         # If all checks pass
         return True, X, y
 
+    except InputValidationError as error:
+        logger.error(str(error))
+        raise
     except Exception as e:
         error_message = f"An error occurred during validation: {str(e)}"
         logger.error(error_message)
@@ -158,10 +172,11 @@ def _convert_data_to_given_type(
 
     expected_column_names = column_info.keys()
 
-    assert len(covariates) == len(data), (
-        "Covariates and Data have different number of rows. Please make sure both "
-        "of them have the same number of rows."
-    )
+    if len(covariates) != len(data):
+        raise InputValidationError(
+            "Covariates and data have different row counts "
+            f"({len(covariates)} and {len(data)}). Align the rows in both CSV files."
+        )
 
     # Combine data frames and
     combined_df = pd.concat([covariates, data], axis=1)
@@ -182,7 +197,11 @@ def _convert_data_to_given_type(
                 f"or correct the data and try again. See log file for details: {str(_get_user_row_numbers(all_rows_to_ignore))}"
             )
             logger.error(err_msg)
-            raise Exception(err_msg)
+            raise InputValidationError(
+                f"Invalid or missing values detected (affected rows: {len(all_rows_to_ignore)}). "
+                "Correct the data or enable IgnoreSubjectsWithMissingData. "
+                "See the site log for row details."
+            )
 
     else:
         logger.info(
@@ -215,7 +234,7 @@ def _convert_data_to_given_type(
                     f"{column_datatype}. Allowed datatypes are int, float, str, bool."
                 )
                 logger.error(err_msg)
-                raise Exception(err_msg)
+                raise InputValidationError(err_msg)
 
         # Check for null or NaNs in the converted data
         curr_rows_to_ignore = combined_df[
@@ -234,14 +253,23 @@ def _convert_data_to_given_type(
                     f" try again. See log file for details: {str(_get_user_row_numbers(curr_rows_to_ignore))}"
                 )
                 logger.error(err_msg)
-                raise Exception(err_msg)
+                raise InputValidationError(
+                    f"Invalid or missing values after type conversion (affected rows: {len(curr_rows_to_ignore)}). "
+                    "Correct the data or enable IgnoreSubjectsWithMissingData. "
+                    "See the site log for row details."
+                )
 
         combined_df = combined_df[expected_column_names]
 
     except Exception as e:
         error_message = f"An error occurred during type conversion for data: {str(e)}"
         logger.error(error_message)
-        raise (e)
+        if isinstance(e, InputValidationError):
+            raise
+        raise InputValidationError(
+            f"Could not convert configured column {column_name} to {column_datatype}. "
+            "Check the column values and requested type."
+        ) from None
 
     # Separate covariates and data into separate data frames
     covariates_X_df = combined_df[list(covariate_info.keys())]
@@ -289,7 +317,7 @@ def _validate_data_datatypes(
                     f"{column_datatype}. Allowed datatypes are int, float, str, bool."
                 )
                 logger.error(err_msg)
-                raise Exception(err_msg)
+                raise InputValidationError(err_msg)
 
             rows_to_ignore = []
 
@@ -355,7 +383,12 @@ def _validate_data_datatypes(
     except Exception as e:
         error_message = f"An error occurred during validation: {str(e)}"
         logger.error(error_message)
-        raise (e)
+        if isinstance(e, InputValidationError):
+            raise
+        raise InputValidationError(
+            f"Could not validate configured column {column_name} as {column_datatype}. "
+            "Check the column values and requested type."
+        ) from None
 
     return list(all_rows_to_ignore)
 
